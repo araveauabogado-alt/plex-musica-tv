@@ -10,6 +10,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /** Un elemento de la biblioteca: artista, álbum, playlist o canción. */
@@ -26,7 +27,13 @@ data class PlexItem(
     val artist: String,
     val titleSort: String = title,
     val addedAt: Long = 0,
+    val lastViewedAt: Long = 0,
+    val released: String = "",
+    val parentRatingKey: String = "",
+    val parentThumb: String? = null,
 )
+
+data class Shelf(val title: String, val items: List<PlexItem>)
 
 data class PlexServer(
     val id: String,
@@ -148,10 +155,10 @@ object Plex {
 
     // ---------- Biblioteca ----------
 
-    private suspend fun container(path: String): JSONObject {
+    private suspend fun container(path: String, size: Int = 10000): JSONObject {
         val req = request((prefs.serverUri ?: "") + path, prefs.serverToken)
             .header("X-Plex-Container-Start", "0")
-            .header("X-Plex-Container-Size", "10000")
+            .header("X-Plex-Container-Size", size.toString())
             .build()
         return JSONObject(fetch(http, req)).getJSONObject("MediaContainer")
     }
@@ -167,8 +174,8 @@ object Plex {
         return out
     }
 
-    suspend fun items(path: String): List<PlexItem> {
-        val arr = container(path).optJSONArray("Metadata") ?: return emptyList()
+    suspend fun items(path: String, size: Int = 10000): List<PlexItem> {
+        val arr = container(path, size).optJSONArray("Metadata") ?: return emptyList()
         return (0 until arr.length()).map { parse(arr.getJSONObject(it)) }
     }
 
@@ -185,6 +192,63 @@ object Plex {
             for (j in 0 until md.length()) byType.getOrPut(type) { mutableListOf() } += parse(md.getJSONObject(j))
         }
         return listOf("artist", "album", "playlist", "track").flatMap { byType[it] ?: emptyList() }
+    }
+
+    // ---------- Inicio ----------
+
+    suspend fun recentReleases(sec: String): List<PlexItem> =
+        items("/library/sections/$sec/all?type=9&sort=originallyAvailableAt:desc", 24)
+            .filter { it.released.isNotEmpty() }
+            .map { it.copy(subtitle = listOf(it.artist, Ui.prettyDate(it.released)).filter { s -> s.isNotEmpty() }.joinToString(" · ")) }
+
+    suspend fun recentlyAdded(sec: String): List<PlexItem> =
+        items("/library/sections/$sec/all?type=9&sort=addedAt:desc", 24)
+
+    /** Álbumes de las últimas canciones escuchadas (en cualquier app de Plex, incluida esta). */
+    suspend fun recentlyPlayed(sec: String): List<PlexItem> =
+        items("/library/sections/$sec/all?type=10&sort=lastViewedAt:desc", 120)
+            .filter { it.lastViewedAt > 0 && it.parentRatingKey.isNotEmpty() }
+            .distinctBy { it.parentRatingKey }
+            .take(24)
+            .map { t ->
+                PlexItem(
+                    ratingKey = t.parentRatingKey,
+                    key = "/library/metadata/${t.parentRatingKey}/children",
+                    type = "album",
+                    title = t.album,
+                    subtitle = t.artist,
+                    thumb = t.parentThumb ?: t.thumb,
+                    partKey = null,
+                    duration = 0,
+                    album = "",
+                    artist = t.artist,
+                )
+            }
+
+    /** Álbumes que hoy cumplen 10, 25 o 50 años desde su lanzamiento. */
+    suspend fun anniversaries(sec: String): List<PlexItem> {
+        val now = Calendar.getInstance()
+        val year = now.get(Calendar.YEAR)
+        val today = "%02d-%02d".format(now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH))
+        return items("/library/sections/$sec/all?type=9")
+            .mapNotNull { a ->
+                val r = a.released
+                if (r.length < 10 || r.substring(5, 10) != today) return@mapNotNull null
+                val age = year - (r.substring(0, 4).toIntOrNull() ?: return@mapNotNull null)
+                if (age !in listOf(10, 25, 50)) return@mapNotNull null
+                a.copy(subtitle = "Hace $age años · ${a.artist}") to age
+            }
+            .sortedByDescending { it.second }
+            .map { it.first }
+    }
+
+    /** Marca una canción como escuchada en Plex (cuenta para "Reproducciones recientes"). */
+    suspend fun scrobble(ratingKey: String) {
+        val req = request(
+            "${prefs.serverUri}/:/scrobble?identifier=com.plexapp.plugins.library&key=$ratingKey",
+            prefs.serverToken,
+        ).build()
+        fetch(http, req)
     }
 
     /**
@@ -244,6 +308,10 @@ object Plex {
             artist = artist,
             titleSort = o.str("titleSort") ?: o.str("title") ?: "",
             addedAt = o.optLong("addedAt"),
+            lastViewedAt = o.optLong("lastViewedAt"),
+            released = o.str("originallyAvailableAt") ?: "",
+            parentRatingKey = o.str("parentRatingKey") ?: "",
+            parentThumb = o.str("parentThumb"),
         )
     }
 

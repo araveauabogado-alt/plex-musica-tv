@@ -22,6 +22,7 @@
             android:orientation="horizontal"
             android:padding="6dp">
 
+            <Button android:id="@+id/btnHome" style="@style/TvButton" android:text="@string/tab_home" />
             <Button android:id="@+id/btnArtists" style="@style/TvButton" android:text="@string/tab_artists" />
             <Button android:id="@+id/btnAlbums" style="@style/TvButton" android:text="@string/tab_albums" />
             <Button android:id="@+id/btnPlaylists" style="@style/TvButton" android:text="@string/tab_playlists" />
@@ -91,13 +92,37 @@
         android:textSize="18sp"
         android:visibility="gone" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/grid"
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:clipChildren="false"
-        android:clipToPadding="false"
-        android:paddingTop="12dp"
-        android:paddingBottom="27dp" />
+        android:clipChildren="false">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingTop="12dp"
+            android:paddingBottom="27dp" />
+
+        <ScrollView
+            android:id="@+id/homeScroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            android:paddingBottom="27dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/homeRows"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipChildren="false"
+                android:orientation="vertical" />
+        </ScrollView>
+    </FrameLayout>
 </LinearLayout>

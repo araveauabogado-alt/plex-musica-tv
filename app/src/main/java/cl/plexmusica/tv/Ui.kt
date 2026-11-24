@@ -56,6 +56,17 @@ object Ui {
             } else collator.compare(a.titleSort, b.titleSort)
         })
 
+    private val months = arrayOf("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic")
+
+    /** "2024-03-08" → "8 mar 2024". */
+    fun prettyDate(iso: String): String {
+        if (iso.length < 10) return iso
+        val y = iso.substring(0, 4)
+        val m = iso.substring(5, 7).toIntOrNull() ?: return iso
+        val d = iso.substring(8, 10).toIntOrNull() ?: return iso
+        return "$d ${months.getOrElse(m - 1) { "" }} $y"
+    }
+
     fun time(ms: Long): String {
         if (ms <= 0) return "0:00"
         val s = ms / 1000
@@ -131,6 +142,7 @@ object Ui {
 class CardAdapter(
     private val items: List<PlexItem>,
     private val onLongClick: ((PlexItem) -> Unit)? = null,
+    private val fixedWidthPx: Int = 0,
     private val onClick: (PlexItem) -> Unit,
 ) : RecyclerView.Adapter<CardAdapter.VH>() {
 
@@ -143,6 +155,7 @@ class CardAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_card, parent, false)
         v.onFocusChangeListener = Ui.focusScale
+        if (fixedWidthPx > 0) v.layoutParams = v.layoutParams.apply { width = fixedWidthPx }
         return VH(v)
     }
 

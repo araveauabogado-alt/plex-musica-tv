@@ -4,11 +4,14 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
@@ -16,10 +19,54 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /** Servicio que sigue reproduciendo aunque salgas de la app o se active el protector de pantalla. */
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
+    private val scope = MainScope()
+    private val handler = Handler(Looper.getMainLooper())
+
+    // Avisa a Plex cuando una canción se escuchó al menos la mitad (o 4 minutos), una vez por reproducción.
+    private var trackedId: String? = null
+    private var trackedIndex = -1
+    private var scrobbled = false
+    private val scrobbleCheck = object : Runnable {
+        override fun run() {
+            checkScrobble()
+            handler.postDelayed(this, 5000)
+        }
+    }
+
+    private fun checkScrobble() {
+        val p = session?.player ?: return
+        val item = p.currentMediaItem ?: return
+        if (item.mediaId != trackedId || p.currentMediaItemIndex != trackedIndex) {
+            trackedId = item.mediaId
+            trackedIndex = p.currentMediaItemIndex
+            scrobbled = false
+        }
+        if (scrobbled) return
+        val dur = p.duration
+        val pos = p.currentPosition
+        if (dur <= 0 || dur == C.TIME_UNSET) return
+        if (pos >= dur / 2 || pos >= 4 * 60_000L) {
+            scrobbled = true
+            val key = item.mediaId
+            scope.launch {
+                try {
+                    Plex.scrobble(key)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // sin conexión: no importa, se pierde solo esta marca
+                }
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -47,11 +94,24 @@ class PlaybackService : MediaSessionService() {
                 }
             })
             .build()
+        player.addListener(object : Player.Listener {
+            override fun onPositionDiscontinuity(
+                oldPosition: Player.PositionInfo,
+                newPosition: Player.PositionInfo,
+                reason: Int,
+            ) {
+                // Al repetir la misma canción se puede volver a contar.
+                if (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION) trackedId = null
+            }
+        })
+        handler.post(scrobbleCheck)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
 
     override fun onDestroy() {
+        handler.removeCallbacks(scrobbleCheck)
+        scope.cancel()
         session?.run {
             player.release()
             release()

@@ -12,14 +12,17 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
-    private enum class Tab { ARTISTS, ALBUMS, PLAYLISTS, SEARCH }
+    private enum class Tab { HOME, ARTISTS, ALBUMS, PLAYLISTS, SEARCH }
 
     private val prefs get() = Plex.prefs
     private lateinit var status: TextView
@@ -30,12 +33,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sortButton: Button
     private lateinit var letterScroll: View
     private lateinit var letterBar: LinearLayout
+    private lateinit var homeScroll: View
+    private lateinit var homeRows: LinearLayout
     private lateinit var tabButtons: Map<Tab, Button>
 
     private var sections: List<Pair<String, String>> = emptyList()
     private var connected = false
     private var job: Job? = null
-    private var current = Tab.ARTISTS
+    private var current = Tab.HOME
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,9 +58,12 @@ class MainActivity : AppCompatActivity() {
         sortButton = findViewById(R.id.btnSort)
         letterScroll = findViewById(R.id.letterScroll)
         letterBar = findViewById(R.id.letterBar)
+        homeScroll = findViewById(R.id.homeScroll)
+        homeRows = findViewById(R.id.homeRows)
         grid.layoutManager = GridLayoutManager(this, Ui.spanCount(this))
 
         tabButtons = mapOf(
+            Tab.HOME to findViewById<Button>(R.id.btnHome),
             Tab.ARTISTS to findViewById<Button>(R.id.btnArtists),
             Tab.ALBUMS to findViewById<Button>(R.id.btnAlbums),
             Tab.PLAYLISTS to findViewById<Button>(R.id.btnPlaylists),
@@ -83,8 +91,8 @@ class MainActivity : AppCompatActivity() {
             } else false
         }
 
-        tabButtons.getValue(Tab.ARTISTS).requestFocus()
-        select(Tab.ARTISTS)
+        tabButtons.getValue(Tab.HOME).requestFocus()
+        select(Tab.HOME)
 
         // Si ya hay música sonando al abrir la app, se muestra directo "Reproduciendo".
         if (savedInstanceState == null) {
@@ -136,6 +144,17 @@ class MainActivity : AppCompatActivity() {
     private fun select(tab: Tab) {
         current = tab
         tabButtons.forEach { (t, b) -> b.isSelected = t == tab }
+        homeScroll.visibility = if (tab == Tab.HOME) View.VISIBLE else View.GONE
+        grid.visibility = if (tab == Tab.HOME) View.GONE else View.VISIBLE
+        if (tab == Tab.HOME) {
+            searchRow.visibility = View.GONE
+            buildLetters(emptyList(), false)
+            launchJob {
+                ensureConnected()
+                loadHome()
+            }
+            return
+        }
         if (tab == Tab.SEARCH) {
             searchRow.visibility = View.VISIBLE
             grid.adapter = null
@@ -160,6 +179,51 @@ class MainActivity : AppCompatActivity() {
             val sorted = if (recentMode) items.sortedByDescending { it.addedAt } else Ui.sortAlpha(items)
             show(sorted, letters = !recentMode)
         }
+    }
+
+    // ---------- Inicio ----------
+
+    private suspend fun loadHome() {
+        setStatus(getString(R.string.loading))
+        val sec = prefs.sectionId ?: return
+        val shelves = coroutineScope {
+            val releases = async { safe { Plex.recentReleases(sec) } }
+            val played = async { safe { Plex.recentlyPlayed(sec) } }
+            val added = async { safe { Plex.recentlyAdded(sec) } }
+            val today = async { safe { Plex.anniversaries(sec) } }
+            listOf(
+                Shelf(getString(R.string.home_releases), releases.await()),
+                Shelf(getString(R.string.home_played), played.await()),
+                Shelf(getString(R.string.home_added), added.await()),
+                Shelf(getString(R.string.home_today), today.await()),
+            )
+        }
+        showHome(shelves.filter { it.items.isNotEmpty() })
+    }
+
+    private suspend fun safe(block: suspend () -> List<PlexItem>): List<PlexItem> =
+        try {
+            block()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+    private fun showHome(shelves: List<Shelf>) {
+        homeRows.removeAllViews()
+        val cardPx = (124 * resources.displayMetrics.density).toInt()
+        for (shelf in shelves) {
+            val row = layoutInflater.inflate(R.layout.item_shelf, homeRows, false)
+            row.findViewById<TextView>(R.id.shelfTitle).text = shelf.title
+            val list = row.findViewById<RecyclerView>(R.id.shelfList)
+            list.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+            list.adapter = CardAdapter(shelf.items, { Ui.queueMenu(this, it) }, cardPx) {
+                Ui.open(this, it, shelf.items)
+            }
+            homeRows.addView(row)
+        }
+        setStatus(if (shelves.isEmpty()) getString(R.string.empty) else "")
     }
 
     private fun runSearch() {

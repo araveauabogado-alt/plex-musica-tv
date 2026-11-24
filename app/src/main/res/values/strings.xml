@@ -13,7 +13,12 @@
     <string name="shared_suffix"> (compartido)</string>
     <string name="error_auto_retry">Error: %1$s. Reintentando…</string>
 
+    <string name="tab_home">Inicio</string>
     <string name="tab_artists">Artistas</string>
+    <string name="home_releases">Lanzamientos recientes</string>
+    <string name="home_played">Reproducciones recientes</string>
+    <string name="home_added">Agregados recientemente</string>
+    <string name="home_today">Lanzados un día como hoy</string>
     <string name="tab_albums">Álbumes</string>
     <string name="tab_playlists">Playlists</string>
     <string name="tab_search">Buscar</string>
