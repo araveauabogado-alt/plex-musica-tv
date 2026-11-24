@@ -33,15 +33,15 @@ class VisualizerView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
 
-    enum class Style { PULSAR, AMBIENT, SPECTRUM, WAVE, HALO }
+    enum class Style { SPECTRUM, WAVE, HALO }
 
-    var style = Style.PULSAR
+    var style = Style.SPECTRUM
         set(value) {
             field = value
             invalidate()
         }
 
-    private val bands = 64 // como Plexamp: 64 bandas logarítmicas
+    private val bands = 48
     private val level = FloatArray(bands)      // nivel suavizado por banda (0..1)
     private val peak = FloatArray(bands)       // "tapitas" que caen lento
     private var bass = 0f
@@ -70,35 +70,6 @@ class VisualizerView @JvmOverloads constructor(
     private val rect = RectF()
     private val path = Path()
     private val matrix = Matrix()
-
-    // Pulsar: historia del espectro (cada fila es una "foto" reciente).
-    private val pulsarRows = 34
-    private val pulsarPoints = 110
-    private val pulsarHistory = Array(pulsarRows) { FloatArray(pulsarPoints) }
-    private var pulsarHead = 0
-    private var pulsarTick = 0
-    private val pulsarNoise = FloatArray(pulsarPoints) { (Math.random() * 0.12).toFloat() }
-
-    // Ambiente: título y artista dibujados bajo la carátula.
-    private var songTitle = ""
-    private var songArtist = ""
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        textAlign = Paint.Align.CENTER
-        try { typeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.dmsans_bold) } catch (_: Exception) {}
-    }
-    private val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xE6FFFFFF.toInt()
-        textAlign = Paint.Align.CENTER
-        try { typeface = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.dmsans_regular) } catch (_: Exception) {}
-    }
-    private val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-
-    fun setSong(title: String, artist: String) {
-        songTitle = title
-        songArtist = artist
-        invalidate()
-    }
 
     /** Carátula y colores de la canción actual (los mismos del fondo de Reproduciendo). */
     fun setArtwork(art: Bitmap?, scheme: ArtColors.Scheme) {
@@ -185,121 +156,11 @@ class VisualizerView @JvmOverloads constructor(
         canvas.drawColor(ColorUtils.setAlphaComponent(color1, (bass * 18).toInt().coerceIn(0, 18)))
 
         when (style) {
-            Style.PULSAR -> drawPulsar(canvas, w, h)
-            Style.AMBIENT -> drawAmbient(canvas, w, h)
             Style.SPECTRUM -> drawSpectrum(canvas, w, h)
             Style.WAVE -> drawWave(canvas, w, h)
             Style.HALO -> drawHalo(canvas, w, h)
         }
         postInvalidateOnAnimation()
-    }
-
-    // ---------- A · Pulsar (inspirado en "Pulsar Joy" de Plexamp) ----------
-
-    /** Guarda una fila nueva cada 3 cuadros: espectro en espejo (graves al centro) con envolvente suave. */
-    private fun pushPulsarRow() {
-        pulsarTick = (pulsarTick + 1) % 3
-        if (pulsarTick != 0) return
-        pulsarHead = (pulsarHead + 1) % pulsarRows
-        val row = pulsarHistory[pulsarHead]
-        val half = pulsarPoints / 2f
-        for (i in 0 until pulsarPoints) {
-            val u = (i - half) / half                     // -1..1
-            val dist = kotlin.math.abs(u)
-            val band = (dist * (bands - 1) * 0.85f).toInt().coerceIn(0, bands - 1)
-            val env = kotlin.math.exp(-(u * u) / 0.16f)   // montaña al centro, plano en los bordes
-            val wobble = pulsarNoise[(i + pulsarHead * 7) % pulsarPoints]
-            row[i] = (level[band] * 0.9f + wobble * level[band]) * env
-        }
-    }
-
-    private fun drawPulsar(canvas: Canvas, w: Float, h: Float) {
-        pushPulsarRow()
-        val left = w * 0.2f
-        val right = w * 0.8f
-        val top = h * 0.2f
-        val bottom = h * 0.84f
-        val amp = h * 0.16f
-        val stepX = (right - left) / (pulsarPoints - 1)
-        paint.strokeJoin = Paint.Join.ROUND
-        paint.strokeCap = Paint.Cap.ROUND
-        // De atrás (arriba, más antigua) hacia adelante (abajo, más nueva): cada línea tapa a las de atrás.
-        for (k in 0 until pulsarRows) {
-            val row = pulsarHistory[(pulsarHead + 1 + k) % pulsarRows]
-            val t = k / (pulsarRows - 1f)
-            val y0 = top + (bottom - top) * t
-            path.reset()
-            path.moveTo(left, y0)
-            for (i in 0 until pulsarPoints) path.lineTo(left + i * stepX, y0 - row[i] * amp * (0.7f + 0.3f * t))
-            path.lineTo(right, y0)
-            // relleno oscuro (como la tinta de la portada original) que oculta las líneas de atrás
-            path.lineTo(right, y0 + 4f)
-            path.lineTo(left, y0 + 4f)
-            path.close()
-            paint.style = Paint.Style.FILL
-            paint.color = ColorUtils.blendARGB(ColorUtils.blendARGB(bg1, bg2, 0.5f), Color.BLACK, 0.45f)
-            canvas.drawPath(path, paint)
-            // la línea
-            path.reset()
-            path.moveTo(left, y0)
-            for (i in 0 until pulsarPoints) path.lineTo(left + i * stepX, y0 - row[i] * amp * (0.7f + 0.3f * t))
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 2.2f
-            paint.color = ColorUtils.setAlphaComponent(ColorUtils.blendARGB(color2, color1, t), (110 + 145 * t).toInt())
-            canvas.drawPath(path, paint)
-        }
-        paint.style = Paint.Style.FILL
-    }
-
-    // ---------- C · Ambiente (colores de la carátula en movimiento lento) ----------
-
-    private fun drawAmbient(canvas: Canvas, w: Float, h: Float) {
-        val t = System.nanoTime() / 1e9f
-        val blobs = arrayOf(
-            floatArrayOf(0.25f, 0.30f, 0.55f, 0.11f, 0f),
-            floatArrayOf(0.75f, 0.35f, 0.50f, 0.08f, 1.7f),
-            floatArrayOf(0.55f, 0.80f, 0.60f, 0.06f, 3.1f),
-            floatArrayOf(0.15f, 0.85f, 0.45f, 0.09f, 4.4f),
-        )
-        val colors = intArrayOf(color2, color1, ColorUtils.blendARGB(color1, color2, 0.5f), ColorUtils.blendARGB(bg1, color2, 0.5f))
-        for ((i, b) in blobs.withIndex()) {
-            val cx = w * (b[0] + 0.08f * sin(t * b[3] + b[4]))
-            val cy = h * (b[1] + 0.07f * cos(t * b[3] * 1.3f + b[4]))
-            val r = w * b[2] * (1f + bass * 0.08f)
-            val c = ColorUtils.blendARGB(colors[i], Color.BLACK, 0.3f)
-            paint.shader = android.graphics.RadialGradient(
-                cx, cy, r,
-                intArrayOf(ColorUtils.setAlphaComponent(c, 190), ColorUtils.setAlphaComponent(c, 0)),
-                null, Shader.TileMode.CLAMP,
-            )
-            canvas.drawCircle(cx, cy, r, paint)
-        }
-        paint.shader = null
-
-        // carátula al centro con sombra, latiendo apenas con los graves
-        val size = h * 0.5f * (1f + bass * 0.025f)
-        val cx = w / 2f
-        val cy = h * 0.42f
-        val radius = size * 0.045f
-        rect.set(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f)
-        shadowPaint.color = Color.BLACK
-        shadowPaint.setShadowLayer(size * 0.06f, 0f, size * 0.03f, 0x99000000.toInt())
-        canvas.drawRoundRect(rect, radius, radius, shadowPaint)
-        val a = art
-        if (a != null) {
-            val shader = BitmapShader(a, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-            val scale = size / min(a.width, a.height)
-            matrix.reset()
-            matrix.setScale(scale, scale)
-            matrix.postTranslate(cx - a.width * scale / 2f, cy - a.height * scale / 2f)
-            shader.setLocalMatrix(matrix)
-            artPaint.shader = shader
-            canvas.drawRoundRect(rect, radius, radius, artPaint)
-        }
-        textPaint.textSize = h * 0.048f
-        subPaint.textSize = h * 0.031f
-        canvas.drawText(songTitle, cx, cy + size / 2f + h * 0.085f, textPaint)
-        canvas.drawText(songArtist, cx, cy + size / 2f + h * 0.135f, subPaint)
     }
 
     /** Barras simétricas desde el centro, con tapitas que caen. */
