@@ -41,11 +41,11 @@
     </style>
 
     <style name="RoundButton">
-        <item name="android:layout_width">64dp</item>
-        <item name="android:layout_height">64dp</item>
-        <item name="android:layout_marginEnd">20dp</item>
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_marginEnd">14dp</item>
         <item name="android:background">@drawable/round_bg</item>
-        <item name="android:padding">14dp</item>
+        <item name="android:padding">12dp</item>
         <item name="android:scaleType">fitCenter</item>
         <item name="android:focusable">true</item>
         <item name="tint">@color/btn_text</item>

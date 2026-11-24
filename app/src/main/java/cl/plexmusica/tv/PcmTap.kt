@@ -9,26 +9,33 @@ import java.nio.ByteOrder
 
 /**
  * Copia el audio que está sonando (ya decodificado) para el visualizador.
- * Solo trabaja mientras el visualizador está abierto ([active]); si no, no hace nada.
- * Guarda las últimas muestras en un anillo estéreo de floats.
+ * Solo trabaja mientras el visualizador está abierto ([active]).
+ *
+ * El audio llega aquí un poco antes de salir por los parlantes (el reproductor
+ * guarda un búfer), así que [window] entrega las muestras con [LATENCY_MS] de atraso
+ * para que la imagen calce con lo que se escucha.
  */
 @OptIn(UnstableApi::class)
 object PcmTap : TeeAudioProcessor.AudioBufferSink {
     @Volatile
     var active = false
 
-    private const val CAPACITY = 8192 // cuadros estéreo
-    private val ring = FloatArray(CAPACITY * 2)
+    private const val LATENCY_MS = 250
+    private const val CAPACITY = 32768 // cuadros (mono, mezcla de ambos canales)
+    private val ring = FloatArray(CAPACITY)
     private var writeFrame = 0
-    private var available = 0
+    private var filled = 0
     private var channels = 2
+    private var sampleRate = 44100
     private var encoding = C.ENCODING_PCM_16BIT
+    private var lastWriteNanos = 0L
 
     override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
         synchronized(this) {
             channels = channelCount.coerceAtLeast(1)
+            sampleRate = sampleRateHz.coerceAtLeast(8000)
             this.encoding = encoding
-            available = 0
+            filled = 0
         }
     }
 
@@ -41,44 +48,44 @@ object PcmTap : TeeAudioProcessor.AudioBufferSink {
                 C.ENCODING_PCM_16BIT -> {
                     val frames = b.remaining() / (2 * ch)
                     for (f in 0 until frames) {
-                        val l = b.short / 32768f
-                        val r = if (ch > 1) b.short / 32768f else l
-                        for (extra in 2 until ch) b.short
-                        put(l, r)
+                        var sum = 0f
+                        for (c in 0 until ch) sum += b.short / 32768f
+                        put(sum / ch)
                     }
                 }
                 C.ENCODING_PCM_FLOAT -> {
                     val frames = b.remaining() / (4 * ch)
                     for (f in 0 until frames) {
-                        val l = b.float
-                        val r = if (ch > 1) b.float else l
-                        for (extra in 2 until ch) b.float
-                        put(l, r)
+                        var sum = 0f
+                        for (c in 0 until ch) sum += b.float
+                        put(sum / ch)
                     }
                 }
                 else -> return
             }
+            lastWriteNanos = System.nanoTime()
         }
     }
 
-    private fun put(l: Float, r: Float) {
-        ring[writeFrame * 2] = l
-        ring[writeFrame * 2 + 1] = r
+    private fun put(v: Float) {
+        ring[writeFrame] = v
         writeFrame = (writeFrame + 1) % CAPACITY
-        if (available < CAPACITY) available++
+        if (filled < CAPACITY) filled++
     }
 
-    /** Copia a [dest] (estéreo intercalado) las muestras nuevas más recientes; devuelve cuántos cuadros. */
-    fun read(dest: FloatArray): Int = synchronized(this) {
-        val max = dest.size / 2
-        val n = minOf(available, max)
-        var start = (writeFrame - n + CAPACITY) % CAPACITY
-        for (i in 0 until n) {
-            dest[i * 2] = ring[start * 2]
-            dest[i * 2 + 1] = ring[start * 2 + 1]
+    /**
+     * Llena [dest] con las últimas muestras (mono) ya atrasadas según la latencia.
+     * Devuelve false si no hay audio reciente (pausa o silencio de la fuente).
+     */
+    fun window(dest: FloatArray): Boolean = synchronized(this) {
+        if (System.nanoTime() - lastWriteNanos > 400_000_000L) return false
+        val delay = (sampleRate * LATENCY_MS / 1000).coerceAtMost(CAPACITY - dest.size - 1)
+        if (filled < dest.size + delay) return false
+        var start = (writeFrame - delay - dest.size + CAPACITY * 2) % CAPACITY
+        for (i in dest.indices) {
+            dest[i] = ring[start]
             start = (start + 1) % CAPACITY
         }
-        available = 0
-        n
+        true
     }
 }
