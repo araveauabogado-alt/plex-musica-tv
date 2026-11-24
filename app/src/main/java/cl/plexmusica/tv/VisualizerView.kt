@@ -163,96 +163,184 @@ class VisualizerView @JvmOverloads constructor(
         postInvalidateOnAnimation()
     }
 
-    /** Barras simétricas desde el centro, con tapitas que caen. */
+    // ---------- Estilo LCD retro (display de radio de auto de fines de los 90) ----------
+    // Los segmentos apagados ("fantasma") se pintan una sola vez en un bitmap; en cada cuadro
+    // solo se dibujan los encendidos, así el costo es bajo para el Mi Box.
+
+    private val ghostColor = 0x09FFFFFF
+    private var ghost: Bitmap? = null
+    private var ghostKey = ""
+    private val ghostPaint = Paint()
+
+    private fun drawGhost(canvas: Canvas, w: Int, h: Int, build: (Canvas) -> Unit) {
+        val key = "$style-$w-$h"
+        if (ghost == null || ghostKey != key) {
+            ghost?.recycle()
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            build(Canvas(bmp))
+            ghost = bmp
+            ghostKey = key
+        }
+        ghost?.let { canvas.drawBitmap(it, 0f, 0f, ghostPaint) }
+    }
+
+    override fun onDetachedFromWindow() {
+        ghost?.recycle()
+        ghost = null
+        super.onDetachedFromWindow()
+    }
+
+    // Espectro: ecualizador de 32 barras de segmentos planos, graves a la izquierda, con reflejo.
+    private val eqBars = 32
+    private val eqSegs = 22
+    private val eqReflect = 7
+
     private fun drawSpectrum(canvas: Canvas, w: Float, h: Float) {
-        val total = bands * 2
-        val areaW = w * 0.78f
+        val areaW = w * 0.74f
         val left = (w - areaW) / 2f
-        val slot = areaW / total
-        val bar = slot * 0.56f
-        val base = h * 0.72f
-        val maxH = h * 0.5f
-        paint.shader = LinearGradient(0f, base - maxH, 0f, base, color2, color1, Shader.TileMode.CLAMP)
-        for (i in 0 until total) {
-            // espejo: graves al centro, agudos hacia los costados
-            val b = if (i < bands) bands - 1 - i else i - bands
-            val x = left + i * slot + (slot - bar) / 2f
-            val bh = max(bar, level[b] * maxH)
-            rect.set(x, base - bh, x + bar, base)
-            canvas.drawRoundRect(rect, bar / 2f, bar / 2f, paint)
-            // reflejo tenue bajo la línea base
-            paint.alpha = 50
-            rect.set(x, base + 6f, x + bar, base + 6f + bh * 0.25f)
-            canvas.drawRoundRect(rect, bar / 2f, bar / 2f, paint)
-            paint.alpha = 255
-        }
-        paint.shader = null
-        paint.color = ColorUtils.setAlphaComponent(Color.WHITE, 200)
-        for (i in 0 until total) {
-            val b = if (i < bands) bands - 1 - i else i - bands
-            val x = left + i * slot + (slot - bar) / 2f
-            val y = base - max(bar, peak[b] * maxH) - bar * 1.6f
-            canvas.drawCircle(x + bar / 2f, y, bar * 0.32f, paint)
-        }
-    }
-
-    /** Tres líneas de onda superpuestas que respiran con el volumen. */
-    private fun drawWave(canvas: Canvas, w: Float, h: Float) {
-        val mid = h * 0.5f
-        val amp = h * (0.18f + energy * 0.35f)
-        val layers = arrayOf(
-            Triple(color2, 1.0f, 0.35f),
-            Triple(color1, 0.7f, 0.6f),
-            Triple(Color.WHITE, 0.45f, 0.9f),
-        )
-        paint.style = Paint.Style.STROKE
-        paint.strokeCap = Paint.Cap.ROUND
-        paint.strokeJoin = Paint.Join.ROUND
-        val t = System.nanoTime() / 1e9f
-        for ((li, layer) in layers.withIndex()) {
-            val (color, scale, alpha) = layer
-            path.reset()
-            val count = waveSmooth.size
-            for (i in 0 until count) {
-                val x = w * 0.06f + (w * 0.88f) * i / (count - 1)
-                // ventana suave en los extremos + leve desfase por capa
-                val edge = sin(PI * i / (count - 1)).toFloat()
-                val drift = sin(t * (0.8f + li * 0.3f) + i * 0.08f) * 0.06f
-                val y = mid + (waveSmooth[i] * 2.2f + drift * energy) * amp * scale * edge
-                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            // brillo: trazo ancho y transparente, luego el fino
-            paint.color = ColorUtils.setAlphaComponent(color, (alpha * 70).toInt())
-            paint.strokeWidth = 14f
-            canvas.drawPath(path, paint)
-            paint.color = ColorUtils.setAlphaComponent(color, (alpha * 255).toInt())
-            paint.strokeWidth = 4f
-            canvas.drawPath(path, paint)
-        }
+        val slot = areaW / eqBars
+        val bw = slot * 0.8f
+        val base = h * 0.70f
+        val maxH = h * 0.48f
+        val sh = maxH / eqSegs
+        val gap = sh * 0.38f
         paint.style = Paint.Style.FILL
+        paint.shader = null
+
+        drawGhost(canvas, w.toInt(), h.toInt()) { g ->
+            paint.color = ghostColor
+            for (i in 0 until eqBars) {
+                val x = left + i * slot + (slot - bw) / 2f
+                for (k in 0 until eqSegs) {
+                    val y1 = base - k * sh
+                    g.drawRect(x, y1 - (sh - gap), x + bw, y1, paint)
+                }
+            }
+        }
+
+        for (i in 0 until eqBars) {
+            // cada barra toma el máximo de su grupo de bandas
+            val b0 = i * bands / eqBars
+            val b1 = ((i + 1) * bands / eqBars).coerceAtLeast(b0 + 1)
+            var lv = 0f
+            var pk = 0f
+            for (b in b0 until b1) {
+                lv = max(lv, level[b])
+                pk = max(pk, peak[b])
+            }
+            val lit = (lv * eqSegs).toInt().coerceIn(0, eqSegs)
+            val pkSeg = (pk * eqSegs).toInt().coerceIn(0, eqSegs - 1)
+            val x = left + i * slot + (slot - bw) / 2f
+            for (k in 0 until lit) {
+                val y1 = base - k * sh
+                paint.color = ColorUtils.blendARGB(color1, color2, k / (eqSegs - 1f))
+                canvas.drawRect(x, y1 - (sh - gap), x + bw, y1, paint)
+            }
+            if (pkSeg >= lit) {
+                val y1 = base - pkSeg * sh
+                paint.color = 0xE6FFFFFF.toInt()
+                canvas.drawRect(x, y1 - (sh - gap), x + bw, y1, paint)
+            }
+            // reflejo: los primeros segmentos encendidos, invertidos y cada vez más tenues
+            for (k in 0 until minOf(lit, eqReflect)) {
+                val fade = 1f - k.toFloat() / eqReflect
+                val alpha = (70 * fade * sqrt(fade)).toInt()
+                if (alpha < 4) continue
+                val y0 = base + gap * 1.6f + k * sh
+                paint.color = ColorUtils.setAlphaComponent(ColorUtils.blendARGB(color1, color2, k / (eqSegs - 1f)), alpha)
+                canvas.drawRect(x, y0, x + bw, y0 + (sh - gap), paint)
+            }
+        }
     }
 
-    /** Carátula al centro que late con los graves, rodeada de un espectro circular. */
+    // Onda: la misma onda, dibujada en una matriz de bloques chicos.
+    private fun drawWave(canvas: Canvas, w: Float, h: Float) {
+        val px = 5f * resources.displayMetrics.density
+        val gap = max(2f, px * 0.24f)
+        val cols = (w * 0.86f / px).toInt()
+        val rows = (h * 0.5f / px).toInt()
+        val x0 = (w - cols * px) / 2f
+        val y0 = h * 0.25f
+        paint.style = Paint.Style.FILL
+        paint.shader = null
+
+        drawGhost(canvas, w.toInt(), h.toInt()) { g ->
+            paint.color = 0x06FFFFFF
+            for (c in 0 until cols) for (r in 0 until rows) {
+                val x = x0 + c * px
+                val y = y0 + r * px
+                g.drawRect(x, y, x + px - gap, y + px - gap, paint)
+            }
+        }
+
+        val mid = rows / 2f
+        val ampRows = h * (0.18f + energy * 0.35f) / px
+        val count = waveSmooth.size
+        var prev = -1
+        for (c in 0 until cols) {
+            // mismo movimiento que antes, muestreado por columna
+            val f = c.toFloat() / (cols - 1) * (count - 1)
+            val i = f.toInt().coerceAtMost(count - 2)
+            val v = waveSmooth[i] + (waveSmooth[i + 1] - waveSmooth[i]) * (f - i)
+            val edge = sin(PI * c / (cols - 1)).toFloat()
+            val row = (mid + v * 2.2f * ampRows * edge).toInt().coerceIn(0, rows - 1)
+            if (prev < 0) prev = row
+            // se rellena el tramo vertical entre columnas para que la línea quede continua
+            val lo = minOf(prev, row)
+            val hi = maxOf(prev, row)
+            val x = x0 + c * px
+            for (r in lo..hi) {
+                val t = (kotlin.math.abs(r - mid) / mid * 1.4f).coerceAtMost(1f)
+                paint.color = ColorUtils.blendARGB(color1, color2, t)
+                val y = y0 + r * px
+                canvas.drawRect(x, y, x + px - gap, y + px - gap, paint)
+            }
+            prev = row
+        }
+    }
+
+    // Halo: carátula al centro que late con los graves; rayos hechos de segmentos.
+    private val haloSegs = 9
+
     private fun drawHalo(canvas: Canvas, w: Float, h: Float) {
         val cx = w / 2f
         val cy = h / 2f
-        val radius = min(w, h) * 0.2f * (1f + bass * 0.08f)
+        val base = min(w, h) * 0.2f
+        val radius = base * (1f + bass * 0.08f)
         val rays = bands * 2
-        paint.shader = SweepGradient(cx, cy, intArrayOf(color1, color2, color1), null)
-        paint.strokeCap = Paint.Cap.ROUND
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = (2 * PI * radius / rays * 0.5f).toFloat()
+        val r0 = base * 1.14f
+        val segL = base * 0.075f
+        val segG = segL * 0.32f
+        val segW = (2 * PI * r0 / rays * 0.62f).toFloat()
+        paint.style = Paint.Style.FILL
+        paint.shader = null
+
+        drawGhost(canvas, w.toInt(), h.toInt()) { g ->
+            paint.color = ghostColor
+            for (i in 0 until rays) {
+                g.save()
+                g.rotate(360f * i / rays, cx, cy)
+                for (k in 0 until haloSegs) {
+                    val ra = r0 + k * segL
+                    g.drawRect(cx - segW / 2f, cy - ra - (segL - segG), cx + segW / 2f, cy - ra, paint)
+                }
+                g.restore()
+            }
+        }
+
         for (i in 0 until rays) {
             val b = if (i < bands) i else rays - 1 - i
-            val angle = (2 * PI * i / rays - PI / 2).toFloat()
-            val len = radius * (0.06f + level[b] * 0.7f)
-            val r0 = radius * 1.12f
-            val c = cos(angle)
-            val s = sin(angle)
-            canvas.drawLine(cx + c * r0, cy + s * r0, cx + c * (r0 + len), cy + s * (r0 + len), paint)
+            val lit = (level[b] * haloSegs).toInt().coerceIn(0, haloSegs)
+            if (lit == 0) continue
+            canvas.save()
+            canvas.rotate(360f * i / rays, cx, cy)
+            for (k in 0 until lit) {
+                val ra = r0 + k * segL
+                paint.color = ColorUtils.blendARGB(color1, color2, k / (haloSegs - 1f))
+                canvas.drawRect(cx - segW / 2f, cy - ra - (segL - segG), cx + segW / 2f, cy - ra, paint)
+            }
+            canvas.restore()
         }
-        paint.shader = null
-        paint.style = Paint.Style.FILL
 
         // anillo de brillo con los graves
         paint.color = ColorUtils.setAlphaComponent(color1, (40 + bass * 120).toInt().coerceAtMost(200))
