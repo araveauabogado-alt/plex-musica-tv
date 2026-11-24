@@ -55,6 +55,7 @@
     <string name="vis_spectrum">Espectro</string>
     <string name="vis_wave">Onda</string>
     <string name="vis_halo">Halo</string>
+    <string name="bar_home">Ir a Inicio</string>
     <string name="bar_open">Abrir</string>
     <string name="bar_pause">Pausar</string>
     <string name="bar_resume">Reanudar</string>

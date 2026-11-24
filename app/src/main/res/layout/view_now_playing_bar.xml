@@ -3,11 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="64dp">
 
+    <!-- La carátula se puede seleccionar: lleva a Inicio -->
     <ImageView
         android:id="@+id/barArt"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:contentDescription="@null"
+        android:clickable="true"
+        android:contentDescription="@string/bar_home"
+        android:focusable="true"
+        android:foreground="@drawable/bar_art_focus"
         android:scaleType="centerCrop" />
 
     <LinearLayout
@@ -39,14 +43,22 @@
             android:textSize="13sp" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/barOpen"
-        style="@style/BarButton"
-        android:text="@string/bar_open" />
+    <ImageButton
+        android:id="@+id/barPrev"
+        style="@style/BarIconButton"
+        android:contentDescription="@string/cd_prev"
+        android:src="@drawable/ic_prev" />
 
-    <Button
+    <ImageButton
         android:id="@+id/barToggle"
-        style="@style/BarButton"
-        android:layout_marginEnd="12dp"
-        android:text="@string/bar_pause" />
+        style="@style/BarIconButton"
+        android:contentDescription="@string/cd_play"
+        android:src="@drawable/ic_pause" />
+
+    <ImageButton
+        android:id="@+id/barNext"
+        style="@style/BarIconButton"
+        android:layout_marginEnd="14dp"
+        android:contentDescription="@string/cd_next"
+        android:src="@drawable/ic_next" />
 </merge>

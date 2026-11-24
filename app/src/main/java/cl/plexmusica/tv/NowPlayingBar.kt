@@ -6,7 +6,7 @@ import android.net.Uri
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -27,8 +27,7 @@ class NowPlayingBar @JvmOverloads constructor(
     private val art: ImageView
     private val title: TextView
     private val sub: TextView
-    private val btnOpen: Button
-    private val btnToggle: Button
+    private val btnToggle: ImageButton
     private var controller: MediaController? = null
     private var lastArt: Uri? = null
 
@@ -47,12 +46,18 @@ class NowPlayingBar @JvmOverloads constructor(
         art = findViewById(R.id.barArt)
         title = findViewById(R.id.barTitle)
         sub = findViewById(R.id.barSub)
-        btnOpen = findViewById(R.id.barOpen)
         btnToggle = findViewById(R.id.barToggle)
         visibility = GONE
-        btnOpen.setOnClickListener {
-            context.startActivity(Intent(context, NowPlayingActivity::class.java))
+        art.setOnClickListener {
+            // Vuelve a la pantalla principal (cerrando las intermedias) en la pestaña Inicio.
+            context.startActivity(
+                Intent(context, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    .putExtra(MainActivity.EXTRA_HOME, true)
+            )
         }
+        findViewById<ImageButton>(R.id.barPrev).setOnClickListener { controller?.seekToPrevious() }
+        findViewById<ImageButton>(R.id.barNext).setOnClickListener { controller?.seekToNext() }
         btnToggle.setOnClickListener {
             controller?.let { c ->
                 if (c.playWhenReady) {
@@ -101,6 +106,6 @@ class NowPlayingBar @JvmOverloads constructor(
                 error(R.drawable.ic_music)
             }
         }
-        btnToggle.text = context.getString(if (c.playWhenReady) R.string.bar_pause else R.string.bar_resume)
+        btnToggle.setImageResource(if (c.playWhenReady) R.drawable.ic_pause else R.drawable.ic_play)
     }
 }

@@ -24,6 +24,7 @@ import java.io.IOException
 class MainActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_NOW_PLAYING = "openNowPlaying"
+        const val EXTRA_HOME = "openHome"
     }
 
     private enum class Tab { HOME, ARTISTS, ALBUMS, PLAYLISTS, SEARCH }
@@ -113,6 +114,10 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(EXTRA_NOW_PLAYING, false)) {
             startActivity(Intent(this, NowPlayingActivity::class.java))
+        }
+        if (intent.getBooleanExtra(EXTRA_HOME, false)) {
+            tabButtons.getValue(Tab.HOME).requestFocus()
+            select(Tab.HOME)
         }
     }
 
