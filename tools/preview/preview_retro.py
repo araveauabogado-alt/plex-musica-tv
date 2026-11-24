@@ -6,7 +6,7 @@ src=open(os.path.join(HERE,"preview_gen.py")).read()
 exec(src[src.index("import math"):src.index("# ---------- 1.")])
 def blend(a,b,f): return tuple(int(a[i]*(1-f)+b[i]*f) for i in range(3))
 BG1=(22,34,86); BG2=(78,40,12); C1=(255,196,90); C2=(120,210,255)
-GHOST=(255,255,255,22)
+GHOST=(255,255,255,9)  # segmentos apagados: apenas visibles
 def grad():
     stops=[BG1,blend(BG1,BG2,0.6),blend(BG2,(0,0,0),0.35)]
     im=Image.new("RGB",(W,H)); g=ImageDraw.Draw(im)
@@ -38,14 +38,14 @@ def seg_color(f):  # abajo color 1 → arriba color 2, como los VU de la época
 
 # ---------- Espectro LCD ----------
 im=grad(); lay=Image.new("RGBA",im.size,(0,0,0,0)); dr=ImageDraw.Draw(lay)
-SB=16  # menos barras y más anchas, como el ecualizador de una radio
+SB=32  # ecualizador: graves a la izquierda, agudos a la derecha
 lv=[level[int(k*BANDS/SB)] for k in range(SB)]; pkv=[peak[int(k*BANDS/SB)] for k in range(SB)]
-total=SB*2; segs=22
+total=SB; segs=22
 areaW=W*0.74; left=(W-areaW)/2; slot=areaW/total; bw=slot*0.8
 base=H*0.76; maxH=H*0.52; sh=maxH/segs; sgap=sh*0.38
 level_,peak_=level,peak; level,peak=lv,pkv
 for i in range(total):
-    b=SB-1-i if i<SB else i-SB
+    b=i
     x=left+i*slot+(slot-bw)/2
     lit=int(round(level[b]*segs)); pk=min(segs-1,int(round(peak[b]*segs)))
     for k in range(segs):
@@ -59,7 +59,7 @@ overlay(im,"Espectro").save("15_retro_espectro.png")
 
 # ---------- Onda LCD (matriz de puntos) ----------
 im=grad(); lay=Image.new("RGBA",im.size,(0,0,0,0)); dr=ImageDraw.Draw(lay)
-px=d(9); gap=max(2,int(px*0.22))
+px=d(5); gap=max(2,int(px*0.24))
 cols=int(W*0.86/px); rows=int(H*0.5/px); x0=(W-cols*px)/2; y0=H*0.25
 wav=[]; v=0
 for i in range(cols): v=v*0.82+r.uniform(-1,1)*0.3; wav.append(v)
@@ -80,7 +80,7 @@ for c in range(cols):
             t=abs(k-mid)/mid
             dr.rectangle((x,y,x+px-gap,y+px-gap),fill=blend(C1,C2,min(1,t*1.4))+(255,))
         else:
-            dr.rectangle((x,y,x+px-gap,y+px-gap),fill=(255,255,255,14))
+            dr.rectangle((x,y,x+px-gap,y+px-gap),fill=(255,255,255,6))
 im=Image.alpha_composite(im,lay)
 overlay(im,"Onda").save("16_retro_onda.png")
 
