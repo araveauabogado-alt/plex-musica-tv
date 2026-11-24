@@ -42,7 +42,7 @@ SB=32  # ecualizador: graves a la izquierda, agudos a la derecha
 lv=[level[int(k*BANDS/SB)] for k in range(SB)]; pkv=[peak[int(k*BANDS/SB)] for k in range(SB)]
 total=SB; segs=22
 areaW=W*0.74; left=(W-areaW)/2; slot=areaW/total; bw=slot*0.8
-base=H*0.76; maxH=H*0.52; sh=maxH/segs; sgap=sh*0.38
+base=H*0.70; maxH=H*0.48; sh=maxH/segs; sgap=sh*0.38
 level_,peak_=level,peak; level,peak=lv,pkv
 for i in range(total):
     b=i
@@ -53,6 +53,12 @@ for i in range(total):
         if k<lit: dr.rectangle((x,y0,x+bw,y1),fill=seg_color(k/(segs-1))+(255,))
         elif k==pk: dr.rectangle((x,y0,x+bw,y1),fill=(255,255,255,230))
         else: dr.rectangle((x,y0,x+bw,y1),fill=GHOST)
+    # reflejo: los primeros segmentos encendidos, invertidos bajo la base y cada vez más tenues
+    REF=7
+    for k in range(min(lit,REF)):
+        y0=base+sgap*1.6+k*sh; y1=y0+(sh-sgap)
+        a=int(70*(1-k/REF)**1.5)
+        if a>3: dr.rectangle((x,y0,x+bw,y1),fill=seg_color(k/(segs-1))+(a,))
 im=Image.alpha_composite(im,lay)
 level,peak=level_,peak_
 overlay(im,"Espectro").save("15_retro_espectro.png")
