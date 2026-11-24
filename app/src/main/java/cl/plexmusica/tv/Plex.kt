@@ -268,7 +268,7 @@ object Plex {
      * Niveles de volumen de la canción para dibujar la forma de onda.
      * Plex solo los tiene si el servidor analizó el volumen (loudness) de la pista; si no, devuelve null.
      */
-    suspend fun waveform(ratingKey: String, bars: Int = 96): FloatArray? {
+    suspend fun waveform(ratingKey: String, bars: Int = 72): FloatArray? {
         val md = container("/library/metadata/$ratingKey").optJSONArray("Metadata")?.optJSONObject(0) ?: return null
         val streams = md.optJSONArray("Media")?.optJSONObject(0)
             ?.optJSONArray("Part")?.optJSONObject(0)

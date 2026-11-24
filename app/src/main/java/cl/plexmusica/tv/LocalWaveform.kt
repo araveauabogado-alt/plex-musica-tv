@@ -19,7 +19,7 @@ object LocalWaveform {
 
     fun cached(key: String): FloatArray? = cache.get(key)
 
-    suspend fun compute(key: String, url: String, durationMs: Long, bars: Int = 96): FloatArray? =
+    suspend fun compute(key: String, url: String, durationMs: Long, bars: Int = 72): FloatArray? =
         withContext(Dispatchers.Default) {
             cache.get(key)?.let { return@withContext it }
             val extractor = MediaExtractor()

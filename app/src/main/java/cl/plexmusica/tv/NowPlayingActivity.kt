@@ -26,6 +26,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
 import coil.imageLoader
+import kotlin.math.abs
 import coil.request.ImageRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -40,6 +41,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private val defaultBg = 0xFF121212.toInt()
     private val defaultAccent = 0xFFE5A00D.toInt()
     private var currentBg = defaultBg
+    private var currentBg2 = 0xFF0A0A0A.toInt()
     private var currentAccent = defaultAccent
     private var colorAnimator: ValueAnimator? = null
     private val gradient = GradientDrawable(
@@ -116,7 +118,7 @@ class NowPlayingActivity : AppCompatActivity() {
             controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
         }
         btnPlay.requestFocus()
-        setColors(defaultBg, defaultAccent)
+        setColors(defaultBg, currentBg2, defaultAccent)
     }
 
     override fun onDestroy() {
@@ -200,6 +202,7 @@ class NowPlayingActivity : AppCompatActivity() {
         }
         btnPlay.setImageResource(if (c.playWhenReady && c.playbackState != Player.STATE_ENDED) R.drawable.ic_pause else R.drawable.ic_play)
         btnShuffle.alpha = if (c.shuffleModeEnabled) 1f else 0.45f
+        waveform.playing = c.isPlaying
 
         val next = c.nextMediaItemIndex
         nextUp.text = if (next != C.INDEX_UNSET) {
@@ -247,7 +250,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private fun applyArtwork(uri: Uri?) {
         if (uri == null) {
             cover.setImageResource(R.drawable.ic_music)
-            animateColors(defaultBg, defaultAccent)
+            animateColors(defaultBg, 0xFF0A0A0A.toInt(), defaultAccent)
             return
         }
         val request = ImageRequest.Builder(this)
@@ -256,25 +259,51 @@ class NowPlayingActivity : AppCompatActivity() {
             .target(
                 onError = {
                     cover.setImageResource(R.drawable.ic_music)
-                    animateColors(defaultBg, defaultAccent)
+                    animateColors(defaultBg, 0xFF0A0A0A.toInt(), defaultAccent)
                 },
                 onSuccess = { drawable ->
                     cover.setImageDrawable(drawable)
                     val bmp = (drawable as? BitmapDrawable)?.bitmap
                     if (bmp == null) {
-                        animateColors(defaultBg, defaultAccent)
+                        animateColors(defaultBg, 0xFF0A0A0A.toInt(), defaultAccent)
                     } else {
                         Palette.from(bmp).generate { p ->
                             if (p == null) return@generate
                             val base = p.getDarkVibrantColor(p.getDarkMutedColor(p.getDominantColor(defaultBg)))
+                            val second = secondColor(p, base)
                             val accent = p.getLightVibrantColor(p.getVibrantColor(p.getLightMutedColor(defaultAccent)))
-                            animateColors(readableBg(base), readableAccent(accent))
+                            animateColors(readableBg(base), readableBg(second), readableAccent(accent))
                         }
                     }
                 },
             )
             .build()
         imageLoader.enqueue(request)
+    }
+
+    /**
+     * Segundo color del degradado: el tono de la carátula más distinto al principal
+     * (se ignoran grises). Si todos son parecidos, usa el tono apagado de la carátula.
+     */
+    private fun secondColor(p: Palette, base: Int): Int {
+        val hslBase = FloatArray(3)
+        ColorUtils.colorToHSL(base, hslBase)
+        val total = p.swatches.sumOf { it.population }.coerceAtLeast(1)
+        var best: Int? = null
+        var bestScore = 0f
+        for (sw in p.swatches) {
+            val hsl = FloatArray(3)
+            ColorUtils.colorToHSL(sw.rgb, hsl)
+            if (hsl[1] < 0.15f || hsl[2] < 0.06f) continue // grises y casi negros no aportan
+            val dh = abs(hsl[0] - hslBase[0]).let { if (it > 180f) 360f - it else it }
+            if (dh < 25f) continue
+            val score = dh * hsl[1] * (0.4f + sw.population.toFloat() / total)
+            if (score > bestScore) {
+                bestScore = score
+                best = sw.rgb
+            }
+        }
+        return best ?: p.getMutedColor(p.getDarkMutedColor(ColorUtils.blendARGB(base, Color.BLACK, 0.5f)))
     }
 
     /** Oscurece el color hasta que el texto blanco se lea bien. */
@@ -299,24 +328,31 @@ class NowPlayingActivity : AppCompatActivity() {
         return c
     }
 
-    private fun animateColors(toBg: Int, toAccent: Int) {
+    private fun animateColors(toBg: Int, toBg2: Int, toAccent: Int) {
         val fromBg = currentBg
+        val fromBg2 = currentBg2
         val fromAccent = currentAccent
         colorAnimator?.cancel()
         colorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 900
             addUpdateListener { a ->
                 val f = a.animatedValue as Float
-                setColors(ColorUtils.blendARGB(fromBg, toBg, f), ColorUtils.blendARGB(fromAccent, toAccent, f))
+                setColors(
+                    ColorUtils.blendARGB(fromBg, toBg, f),
+                    ColorUtils.blendARGB(fromBg2, toBg2, f),
+                    ColorUtils.blendARGB(fromAccent, toAccent, f),
+                )
             }
             start()
         }
     }
 
-    private fun setColors(bg: Int, accent: Int) {
+    private fun setColors(bg: Int, bg2: Int, accent: Int) {
         currentBg = bg
+        currentBg2 = bg2
         currentAccent = accent
-        gradient.setColors(intArrayOf(bg, ColorUtils.blendARGB(bg, Color.BLACK, 0.7f)))
+        // Diagonal: color principal arriba a la izquierda, segundo color abajo a la derecha.
+        gradient.setColors(intArrayOf(bg, ColorUtils.blendARGB(bg, bg2, 0.6f), ColorUtils.blendARGB(bg2, Color.BLACK, 0.35f)))
         artist.setTextColor(accent)
         progress.progressTintList = ColorStateList.valueOf(accent)
         waveform.playedColor = accent
