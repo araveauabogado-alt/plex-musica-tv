@@ -11,11 +11,21 @@ cvb,_,_=cover(bh,77); mk=Image.new("L",(bh,bh),0); ImageDraw.Draw(mk).rounded_re
 im.paste(cvb,(bx0,by),mk)
 dr.text((bx0+bh+d(16),by+d(14)),"Ella Me Levantó ft. Boogie Mike (Bruno Borlone Bootleg)",font=F("m",17),fill=(255,255,255,255))
 dr.text((bx0+bh+d(16),by+d(38)),"Plex Música TV · Bruno Borlone · Remixes Collection",font=F("r",13),fill=(170,170,170,255))
-fb=F("m",13)
-def small_btn(xr,text,foc):
-    w=dr.textlength(text,font=fb)+d(32); dr.rounded_rectangle((xr-w,by+d(15),xr,by+d(49)),radius=d(17),fill=(229,160,13,255) if foc else (255,255,255,38))
-    dr.text((xr-w+d(16),by+d(32)),text,font=fb,fill=(0,0,0,255) if foc else (255,255,255,255),anchor="lm"); return xr-w-d(8)
-xr=small_btn(bx1-d(12),"Pausar",False); small_btn(xr,"Abrir",True)
+import subprocess, io, re as _re
+def _icon(name,px,col):
+    xml=open(REPO+"/app/src/main/res/drawable/"+name+".xml").read(); p=_re.search(r'pathData="([^"]+)"',xml).group(1)
+    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="{px}" height="{px}" viewBox="0 0 24 24"><path fill="rgb{col}" d="{p}"/></svg>'
+    return Image.open(io.BytesIO(subprocess.run(["rsvg-convert"],input=svg.encode(),capture_output=True).stdout)).convert("RGBA")
+icons=[]
+xr=bx1-d(14)
+for name,foc in [("ic_next",False),("ic_pause",True),("ic_prev",False)]:
+    cx=xr-d(20); cy=by+bh//2
+    dr.ellipse((cx-d(20),cy-d(20),cx+d(20),cy+d(20)),fill=(229,160,13,255) if foc else (255,255,255,38))
+    icons.append((name,cx,cy,(0,0,0) if foc else (255,255,255)))
+    xr-=d(48)
+im=Image.alpha_composite(im,ov); ov=Image.new("RGBA",(W,H),(0,0,0,0)); dr=ImageDraw.Draw(ov)
+for name,cx,cy,col in icons:
+    ic=_icon(name,d(20),col); im.paste(ic,(int(cx-ic.width/2),int(cy-ic.height/2)),ic)
 x=d(54); y=d(27+64+12)
 for t,f,s in [("Inicio",False,True),("▶ Reproduciendo",0,0),("Artistas",0,0),("Álbumes",0,0),("Playlists",0,0),("Buscar",0,0),("Orden: A–Z",0,0)]:
     x=pill(dr,x,y,t,f,s)
