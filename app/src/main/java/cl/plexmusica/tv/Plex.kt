@@ -31,6 +31,8 @@ data class PlexItem(
     val released: String = "",
     val parentRatingKey: String = "",
     val parentThumb: String? = null,
+    val codec: String = "",
+    val bitrate: Int = 0,
 )
 
 data class Shelf(val title: String, val items: List<PlexItem>)
@@ -264,6 +266,51 @@ object Plex {
         fetch(http, req)
     }
 
+    private val audioInfoCache = android.util.LruCache<String, String>(200)
+
+    /**
+     * Ficha técnica del archivo: "FLAC · 24 bit · 96 kHz · 4.608 kbps".
+     * La profundidad de bits y la frecuencia vienen en el detalle de la pista.
+     */
+    suspend fun audioInfo(ratingKey: String): String? {
+        audioInfoCache.get(ratingKey)?.let { return it }
+        val md = container("/library/metadata/$ratingKey").optJSONArray("Metadata")?.optJSONObject(0) ?: return null
+        val media = md.optJSONArray("Media")?.optJSONObject(0) ?: return null
+        val streams = media.optJSONArray("Part")?.optJSONObject(0)?.optJSONArray("Stream")
+        var audio: JSONObject? = null
+        if (streams != null) {
+            for (i in 0 until streams.length()) {
+                val s = streams.getJSONObject(i)
+                if (s.optInt("streamType") == 2) {
+                    audio = s
+                    break
+                }
+            }
+        }
+        val codec = audio?.str("codec") ?: media.str("audioCodec") ?: ""
+        val bits = audio?.optInt("bitDepth") ?: 0
+        val rate = audio?.optInt("samplingRate") ?: 0
+        val kbps = audio?.optInt("bitrate")?.takeIf { it > 0 } ?: media.optInt("bitrate")
+        val text = formatAudio(codec, kbps, bits, rate)
+        if (text.isNotEmpty()) audioInfoCache.put(ratingKey, text)
+        return text.ifEmpty { null }
+    }
+
+    fun formatAudio(codec: String, kbps: Int, bits: Int = 0, rate: Int = 0): String {
+        val es = java.util.Locale("es")
+        val name = when (codec.lowercase()) {
+            "" -> ""
+            "vorbis" -> "OGG Vorbis"
+            else -> codec.uppercase()
+        }
+        val parts = mutableListOf<String>()
+        if (name.isNotEmpty()) parts += name
+        if (bits > 0) parts += "$bits bit"
+        if (rate > 0) parts += if (rate % 1000 == 0) "${rate / 1000} kHz" else String.format(es, "%.1f kHz", rate / 1000.0)
+        if (kbps > 0) parts += String.format(es, "%,d kbps", kbps)
+        return parts.joinToString(" · ")
+    }
+
     /**
      * Niveles de volumen de la canción para dibujar la forma de onda.
      * Plex solo los tiene si el servidor analizó el volumen (loudness) de la pista; si no, devuelve null.
@@ -325,6 +372,8 @@ object Plex {
             released = o.str("originallyAvailableAt") ?: "",
             parentRatingKey = o.str("parentRatingKey") ?: "",
             parentThumb = o.str("parentThumb"),
+            codec = o.optJSONArray("Media")?.optJSONObject(0)?.str("audioCodec") ?: "",
+            bitrate = o.optJSONArray("Media")?.optJSONObject(0)?.optInt("bitrate") ?: 0,
         )
     }
 

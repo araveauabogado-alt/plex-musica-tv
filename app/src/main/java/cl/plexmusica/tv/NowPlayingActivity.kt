@@ -54,6 +54,9 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var artist: TextView
     private lateinit var album: TextView
     private lateinit var progress: ProgressBar
+    private lateinit var audioInfo: TextView
+    private var infoKey: String? = null
+    private var infoJob: Job? = null
     private lateinit var position: TextView
     private lateinit var duration: TextView
     private lateinit var nextUp: TextView
@@ -87,6 +90,7 @@ class NowPlayingActivity : AppCompatActivity() {
         artist = findViewById(R.id.artist)
         album = findViewById(R.id.album)
         progress = findViewById(R.id.progress)
+        audioInfo = findViewById(R.id.audioInfo)
         position = findViewById(R.id.position)
         duration = findViewById(R.id.duration)
         nextUp = findViewById(R.id.nextUp)
@@ -195,6 +199,10 @@ class NowPlayingActivity : AppCompatActivity() {
             album.text = md.albumTitle ?: ""
         }
         val item = c.currentMediaItem
+        if (item?.mediaId != infoKey) {
+            infoKey = item?.mediaId
+            loadAudioInfo(item)
+        }
         if (item?.mediaId != waveKey) {
             waveKey = item?.mediaId
             loadWaveform(item)
@@ -233,7 +241,12 @@ class NowPlayingActivity : AppCompatActivity() {
                 waveform.visibility = View.VISIBLE
                 val levels = levelsFor(item)
                 if (waveKey == key) {
-                    if (levels != null) showWave(levels) else waveform.visibility = View.INVISIBLE
+                    if (levels != null) {
+                        showWave(levels)
+                    } else {
+                        waveform.visibility = View.INVISIBLE
+                        progress.visibility = View.VISIBLE
+                    }
                 }
             }
             // Mientras suena esta canción, se prepara la onda de la siguiente.
@@ -266,9 +279,37 @@ class NowPlayingActivity : AppCompatActivity() {
         return LocalWaveform.compute(key, url, dur)
     }
 
+    /** Codec y bitrate: primero lo de la lista (instantáneo), luego el detalle con bits y kHz. */
+    private fun loadAudioInfo(item: MediaItem?) {
+        infoJob?.cancel()
+        if (item == null) {
+            audioInfo.visibility = View.INVISIBLE
+            return
+        }
+        val extras = item.mediaMetadata.extras
+        val quick = Plex.formatAudio(extras?.getString("codec") ?: "", extras?.getInt("bitrate") ?: 0)
+        audioInfo.text = quick
+        audioInfo.visibility = if (quick.isEmpty()) View.INVISIBLE else View.VISIBLE
+        val key = item.mediaId
+        infoJob = lifecycleScope.launch {
+            val full = try {
+                Plex.audioInfo(key)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (full != null && infoKey == key) {
+                audioInfo.text = full
+                audioInfo.visibility = View.VISIBLE
+            }
+        }
+    }
+
     private fun showWave(levels: FloatArray) {
         waveform.setLevels(levels)
         waveform.visibility = View.VISIBLE
+        progress.visibility = View.GONE
     }
 
     // ---------- Fondo según los colores de la carátula ----------

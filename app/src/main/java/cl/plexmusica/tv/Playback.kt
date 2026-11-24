@@ -208,7 +208,13 @@ object PlayerConnection {
                     .setArtist(t.artist)
                     .setAlbumTitle(t.album)
                     .setArtworkUri(art)
-                    .setExtras(Bundle().apply { putLong("duration", t.duration) })
+                    .setExtras(
+                        Bundle().apply {
+                            putLong("duration", t.duration)
+                            putString("codec", t.codec)
+                            putInt("bitrate", t.bitrate)
+                        }
+                    )
                     .build()
             )
             .build()
