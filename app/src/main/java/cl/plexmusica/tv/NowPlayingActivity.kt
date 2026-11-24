@@ -216,28 +216,51 @@ class NowPlayingActivity : AppCompatActivity() {
 
     private fun loadWaveform(item: MediaItem?) {
         waveJob?.cancel()
-        waveform.visibility = View.INVISIBLE
-        if (item == null) return
-        val key = item.mediaId
-        if (key.isEmpty()) return
-        LocalWaveform.cached(key)?.let { showWave(it); return }
-        waveJob = lifecycleScope.launch {
-            // 1) Niveles que Plex ya tiene analizados (rápido).
-            var levels = try {
-                Plex.waveform(key)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                null
-            }
-            // 2) Si Plex no los tiene, se calculan en la TV decodificando el audio.
-            if (levels == null) {
-                val url = (item.requestMetadata.mediaUri ?: item.localConfiguration?.uri)?.toString()
-                val dur = item.mediaMetadata.extras?.getLong("duration") ?: 0L
-                if (url != null) levels = LocalWaveform.compute(key, url, dur)
-            }
-            if (levels != null && waveKey == key) showWave(levels)
+        if (item == null || item.mediaId.isEmpty()) {
+            waveform.visibility = View.INVISIBLE
+            return
         }
+        val key = item.mediaId
+        waveJob = lifecycleScope.launch {
+            val ready = LocalWaveform.cached(key)
+            if (ready != null) {
+                showWave(ready)
+            } else {
+                waveform.showLoading()
+                waveform.visibility = View.VISIBLE
+                val levels = levelsFor(item)
+                if (waveKey == key) {
+                    if (levels != null) showWave(levels) else waveform.visibility = View.INVISIBLE
+                }
+            }
+            // Mientras suena esta canción, se prepara la onda de la siguiente.
+            val c = controller ?: return@launch
+            val next = c.nextMediaItemIndex
+            if (next != C.INDEX_UNSET) {
+                val nextItem = c.getMediaItemAt(next)
+                if (LocalWaveform.cached(nextItem.mediaId) == null) levelsFor(nextItem)
+            }
+        }
+    }
+
+    /** Niveles de Plex si los tiene analizados; si no, calculados en la TV. Quedan guardados. */
+    private suspend fun levelsFor(item: MediaItem): FloatArray? {
+        val key = item.mediaId
+        LocalWaveform.cached(key)?.let { return it }
+        val fromPlex = try {
+            Plex.waveform(key)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+        if (fromPlex != null) {
+            LocalWaveform.store(key, fromPlex)
+            return fromPlex
+        }
+        val url = (item.requestMetadata.mediaUri ?: item.localConfiguration?.uri)?.toString() ?: return null
+        val dur = item.mediaMetadata.extras?.getLong("duration") ?: 0L
+        return LocalWaveform.compute(key, url, dur)
     }
 
     private fun showWave(levels: FloatArray) {

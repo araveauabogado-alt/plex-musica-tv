@@ -62,7 +62,17 @@ class WaveformView @JvmOverloads constructor(
 
     private val restColor = 0x33FFFFFF
 
+    private var loading = false
+
+    /** Estado de espera: una línea de puntos con un brillo que la recorre. */
+    fun showLoading() {
+        levels = FloatArray(0)
+        loading = true
+        invalidate()
+    }
+
     fun setLevels(values: FloatArray) {
+        loading = false
         levels = values
         appear = 0f
         appearStart = 0L
@@ -72,6 +82,10 @@ class WaveformView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (loading) {
+            drawLoading(canvas)
+            return
+        }
         val n = levels.size
         if (n == 0) return
         val now = System.nanoTime() / 1_000_000L
@@ -117,5 +131,27 @@ class WaveformView @JvmOverloads constructor(
         }
 
         if (appear < 1f || playing || shown != progress) postInvalidateOnAnimation()
+    }
+
+    private fun drawLoading(canvas: Canvas) {
+        val n = 72
+        val w = width.toFloat()
+        val h = height.toFloat()
+        val slot = w / n
+        val bar = max(2f, slot * 0.42f)
+        val t = (System.nanoTime() / 1_000_000L) / 1000f
+        val head = (t * 0.6f) % 1.4f - 0.2f // posición del brillo, recorre de izquierda a derecha
+        for (i in 0 until n) {
+            val pos = (i + 0.5f) / n
+            val glow = (1f - kotlin.math.abs(pos - head) / 0.12f).coerceIn(0f, 1f)
+            val bh = bar + glow * h * 0.22f
+            val alpha = (0x33 + (0x99 - 0x33) * glow).toInt()
+            paint.color = (alpha shl 24) or (playedColor and 0x00FFFFFF)
+            val x = i * slot + (slot - bar) / 2f
+            val top = (h - bh) / 2f
+            rect.set(x, top, x + bar, top + bh)
+            canvas.drawRoundRect(rect, bar / 2f, bar / 2f, paint)
+        }
+        postInvalidateOnAnimation()
     }
 }

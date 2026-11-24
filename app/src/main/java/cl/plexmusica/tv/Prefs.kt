@@ -8,6 +8,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Plex.prefs = Prefs(this)
+        LocalWaveform.init(this)
     }
 }
 
