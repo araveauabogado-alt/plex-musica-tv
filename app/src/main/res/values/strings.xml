@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Plex Música TV</string>
+
+    <string name="link_title">Vincular con tu cuenta Plex</string>
+    <string name="link_step1">En tu teléfono o computador entra a</string>
+    <string name="link_url">plex.tv/link</string>
+    <string name="link_step2">e ingresa este código:</string>
+    <string name="waiting_link">Esperando que ingreses el código…</string>
+    <string name="loading_servers">Buscando tus servidores…</string>
+    <string name="no_servers">No se encontró ningún servidor Plex en tu cuenta.</string>
+    <string name="pick_server">Elige el servidor con tu música:</string>
+    <string name="shared_suffix"> (compartido)</string>
+    <string name="error_auto_retry">Error: %1$s. Reintentando…</string>
+
+    <string name="tab_artists">Artistas</string>
+    <string name="tab_albums">Álbumes</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_search">Buscar</string>
+    <string name="now_playing">▶ Reproduciendo</string>
+    <string name="logout">Cerrar sesión</string>
+    <string name="library_x">Biblioteca: %1$s</string>
+    <string name="search_hint">Artista, álbum o canción</string>
+
+    <string name="connecting">Conectando con %1$s…</string>
+    <string name="server_not_found">Tu servidor ya no aparece en la cuenta. Cierra sesión y vuelve a vincular.</string>
+    <string name="server_unreachable">No se pudo conectar con el servidor. ¿Está encendido?</string>
+    <string name="no_music">El servidor no tiene bibliotecas de música.</string>
+    <string name="error_retry">Error: %1$s. Presiona una pestaña para reintentar.</string>
+    <string name="error_simple">Error: %1$s</string>
+    <string name="loading">Cargando…</string>
+    <string name="searching">Buscando…</string>
+    <string name="empty">No hay nada aquí.</string>
+
+    <string name="play_all">▶ Reproducir</string>
+    <string name="shuffle">Aleatorio</string>
+    <string name="tracks_summary">%1$d canciones · %2$s</string>
+
+    <string name="nothing_playing">Nada en reproducción</string>
+    <string name="next_up">A continuación: %1$s — %2$s</string>
+    <string name="cd_prev">Anterior</string>
+    <string name="cd_play">Reproducir o pausar</string>
+    <string name="cd_next">Siguiente</string>
+    <string name="cd_shuffle">Aleatorio</string>
+</resources>
