@@ -12,21 +12,28 @@ ad.ellipse((190,70,350,230),fill=(250,170,70)); art=art.filter(ImageFilter.Gauss
 small=art.resize((16,16),Image.BILINEAR)
 bands=48; r=random.Random(3)
 level=[max(0.05,min(1,(1-b/bands)**0.6*0.95*(0.55+0.45*r.random()))) for b in range(bands)]
+BG1=(22,34,86); BG2=(78,40,12)
 def base():
-    bg=small.resize((W,H),Image.BICUBIC).filter(ImageFilter.GaussianBlur(d(18)))
-    return Image.blend(bg,Image.new("RGB",(W,H),(0,0,0)),0.55)
+    stops=[BG1,blend(BG1,BG2,0.6),blend(BG2,(0,0,0),0.35)]
+    im=Image.new("RGB",(W,H)); g=ImageDraw.Draw(im)
+    for k in range(0,W+H,2):
+        t=k/(W+H); col=blend(stops[0],stops[1],t*2) if t<0.5 else blend(stops[1],stops[2],(t-0.5)*2)
+        g.line([(k,0),(k-H,H)],fill=col,width=3)
+    return im
 def overlay(im,style):
     ov=Image.new("RGBA",im.size,(0,0,0,0)); od=ImageDraw.Draw(ov)
-    t1="Teardrop — Massive Attack"; f1=F("m",18); w1=od.textlength(t1,font=f1)
-    od.rounded_rectangle((d(48),d(32),d(48)+w1+d(28),d(32)+d(36)),radius=d(16),fill=(0,0,0,102))
-    od.text((d(62),d(50)),t1,font=f1,fill=(255,255,255),anchor="lm")
+    t1="Teardrop — Massive Attack"; f1=F("m",18)
+    od.text((d(48+56+14),d(32+28)),t1,font=f1,fill=(255,255,255),anchor="lm")
     sym=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",int(14*S))
     t2=f"{style}   "; f2=F("r",14); w2=od.textlength(t2,font=f2)+od.textlength("◀ ▶",font=sym)+od.textlength(" cambiar estilo · OK pausa",font=f2)
     y=H-d(32)-d(32); od.rounded_rectangle((d(48),y,d(48)+w2+d(28),y+d(32)),radius=d(16),fill=(0,0,0,102))
     x=d(62); od.text((x,y+d(16)),t2,font=f2,fill=(221,221,221),anchor="lm"); x+=od.textlength(t2,font=f2)
     od.text((x,y+d(16)),"◀ ▶",font=sym,fill=(221,221,221),anchor="lm"); x+=od.textlength("◀ ▶",font=sym)
     od.text((x,y+d(16))," cambiar estilo · OK pausa",font=f2,fill=(221,221,221),anchor="lm")
-    return Image.alpha_composite(im.convert("RGBA"),ov).convert("RGB")
+    out=Image.alpha_composite(im.convert("RGBA"),ov)
+    th=art.resize((d(56),d(56)),Image.LANCZOS); m=Image.new("L",th.size,0); ImageDraw.Draw(m).rounded_rectangle((0,0,th.size[0]-1,th.size[1]-1),radius=d(8),fill=255)
+    out.paste(th,(d(48),d(32)),m)
+    return out.convert("RGB")
 # Espectro
 im=base(); dr=ImageDraw.Draw(im,"RGBA")
 total=bands*2; areaW=W*0.78; left=(W-areaW)/2; slot=areaW/total; bar=slot*0.56; bl=H*0.72; maxH=H*0.5
