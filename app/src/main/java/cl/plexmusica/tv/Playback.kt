@@ -12,7 +12,14 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.annotation.OptIn
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.TeeAudioProcessor
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -25,6 +32,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /** Servicio que sigue reproduciendo aunque salgas de la app o se active el protector de pantalla. */
+@OptIn(UnstableApi::class)
 class PlaybackService : MediaSessionService() {
     private var session: MediaSession? = null
     private val scope = MainScope()
@@ -74,7 +82,17 @@ class PlaybackService : MediaSessionService() {
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .build()
-        val player = ExoPlayer.Builder(this)
+        // El audio decodificado pasa también por PcmTap, que alimenta al visualizador.
+        val renderers = object : DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean,
+            ): AudioSink? = DefaultAudioSink.Builder(context)
+                .setAudioProcessors(arrayOf<AudioProcessor>(TeeAudioProcessor(PcmTap)))
+                .build()
+        }
+        val player = ExoPlayer.Builder(this, renderers)
             .setAudioAttributes(attrs, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)

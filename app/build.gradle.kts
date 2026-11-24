@@ -14,7 +14,17 @@ android {
         // En GitHub Actions el número de compilación sube solo, así cada APK es una actualización.
         val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionCode = run
-        versionName = "1.0.$run"
+        versionName = "2.0.$run"
+
+        ndk {
+            // armeabi-v7a: muchos equipos Android TV usan Android de 32 bits aunque el chip sea de 64.
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+        externalNativeBuild {
+            cmake {
+                arguments += listOf("-DANDROID_STL=c++_static")
+            }
+        }
     }
 
     // Firma fija: GitHub Actions crea app/release.jks desde el secreto KEYSTORE_B64.
@@ -34,6 +44,13 @@ android {
             isMinifyEnabled = false
             signingConfig = if (releaseKeystore.exists()) signingConfigs.getByName("release")
             else signingConfigs.getByName("debug")
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 

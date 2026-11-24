@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF000000">
+
+    <android.opengl.GLSurfaceView
+        android:id="@+id/gl"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/songInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="32dp"
+        android:background="@drawable/vis_label_bg"
+        android:fontFamily="@font/dmsans_medium"
+        android:paddingStart="14dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp"
+        android:shadowColor="#CC000000"
+        android:shadowRadius="6"
+        android:textColor="#FFFFFFFF"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/presetInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="48dp"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/vis_label_bg"
+        android:paddingStart="14dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp"
+        android:textColor="#DDFFFFFF"
+        android:textSize="14sp" />
+</FrameLayout>

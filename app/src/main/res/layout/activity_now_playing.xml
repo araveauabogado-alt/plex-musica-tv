@@ -126,6 +126,7 @@
             <ImageButton android:id="@+id/btnNext" style="@style/RoundButton" android:contentDescription="@string/cd_next" android:src="@drawable/ic_next" />
             <ImageButton android:id="@+id/btnShuffleMode" style="@style/RoundButton" android:contentDescription="@string/cd_shuffle" android:src="@drawable/ic_shuffle" />
             <ImageButton android:id="@+id/btnQueue" style="@style/RoundButton" android:contentDescription="@string/cd_queue" android:src="@drawable/ic_queue" />
+            <ImageButton android:id="@+id/btnVisualizer" style="@style/RoundButton" android:contentDescription="@string/cd_visualizer" android:src="@drawable/ic_visualizer" />
         </LinearLayout>
 
         <TextView

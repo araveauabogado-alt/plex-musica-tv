@@ -50,6 +50,10 @@
     <string name="cd_next">Siguiente</string>
     <string name="cd_shuffle">Aleatorio</string>
     <string name="seek_hint">◀ ▶ retroceder / adelantar</string>
+    <string name="cd_visualizer">Visualizador</string>
+    <string name="vis_info">Preset %1$d/%2$d · %3$s · %4$s   ◀ ▶ cambiar · OK fijar</string>
+    <string name="vis_auto">cambia solo</string>
+    <string name="vis_locked">fijado</string>
     <string name="cd_queue">Cola de reproducción</string>
 
     <string name="queue_title">Cola de reproducción</string>

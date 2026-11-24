@@ -16,6 +16,11 @@
         <item name="fontFamily">@font/app_font</item>
     </style>
 
+    <style name="AppTheme.Fullscreen">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
     <style name="TvButton">
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>

@@ -107,6 +107,9 @@ class NowPlayingActivity : AppCompatActivity() {
                 else -> false
             }
         }
+        findViewById<ImageButton>(R.id.btnVisualizer).setOnClickListener {
+            startActivity(Intent(this, VisualizerActivity::class.java))
+        }
         findViewById<ImageButton>(R.id.btnQueue).setOnClickListener {
             startActivity(Intent(this, QueueActivity::class.java))
         }
