@@ -96,15 +96,15 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:clipChildren="false">
+        android:clipChildren="true">
 
-        <androidx.recyclerview.widget.RecyclerView
+        <cl.plexmusica.tv.TvRecyclerView
             android:id="@+id/grid"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
-            android:paddingTop="12dp"
+            android:paddingTop="14dp"
             android:paddingBottom="27dp" />
 
         <ScrollView
@@ -113,6 +113,7 @@
             android:layout_height="match_parent"
             android:clipChildren="false"
             android:clipToPadding="false"
+            android:paddingTop="4dp"
             android:paddingBottom="27dp"
             android:scrollbars="none"
             android:visibility="gone">
@@ -124,5 +125,11 @@
                 android:clipChildren="false"
                 android:orientation="vertical" />
         </ScrollView>
+
+        <!-- Difumina lo que sube por debajo de la barra de pestañas -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="18dp"
+            android:background="@drawable/top_fade" />
     </FrameLayout>
 </LinearLayout>
