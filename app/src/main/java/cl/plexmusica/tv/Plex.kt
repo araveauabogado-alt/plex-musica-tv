@@ -225,20 +225,33 @@ object Plex {
                 )
             }
 
-    /** Álbumes que hoy cumplen 10, 25 o 50 años desde su lanzamiento. */
+    /** Álbumes que esta semana (lunes a domingo) cumplen 10, 25 o 50 años desde su lanzamiento. */
     suspend fun anniversaries(sec: String): List<PlexItem> {
-        val now = Calendar.getInstance()
-        val year = now.get(Calendar.YEAR)
-        val today = "%02d-%02d".format(now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH))
+        val today = Calendar.getInstance()
+        val monday = (today.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_MONTH, -((get(Calendar.DAY_OF_WEEK) - Calendar.MONDAY + 7) % 7))
+        }
+        val dayNames = arrayOf("Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb")
+        // "MM-dd" de cada día de la semana → (año de ese día, posición en la semana, etiqueta)
+        val week = HashMap<String, Triple<Int, Int, String>>()
+        for (i in 0 until 7) {
+            val c = (monday.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, i) }
+            val key = "%02d-%02d".format(c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
+            val sameDay = c.get(Calendar.YEAR) == today.get(Calendar.YEAR) &&
+                c.get(Calendar.DAY_OF_YEAR) == today.get(Calendar.DAY_OF_YEAR)
+            val label = if (sameDay) "Hoy" else "${dayNames[c.get(Calendar.DAY_OF_WEEK) - 1]} ${c.get(Calendar.DAY_OF_MONTH)}"
+            week[key] = Triple(c.get(Calendar.YEAR), i, label)
+        }
         return items("/library/sections/$sec/all?type=9")
             .mapNotNull { a ->
                 val r = a.released
-                if (r.length < 10 || r.substring(5, 10) != today) return@mapNotNull null
+                if (r.length < 10) return@mapNotNull null
+                val (year, pos, label) = week[r.substring(5, 10)] ?: return@mapNotNull null
                 val age = year - (r.substring(0, 4).toIntOrNull() ?: return@mapNotNull null)
                 if (age !in listOf(10, 25, 50)) return@mapNotNull null
-                a.copy(subtitle = "Hace $age años · ${a.artist}") to age
+                Triple(a.copy(subtitle = "$label · $age años · ${a.artist}"), pos, age)
             }
-            .sortedByDescending { it.second }
+            .sortedWith(compareBy<Triple<PlexItem, Int, Int>> { it.second }.thenByDescending { it.third })
             .map { it.first }
     }
 
