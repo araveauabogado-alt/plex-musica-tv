@@ -163,6 +163,17 @@ object PlayerConnection {
         }, ContextCompat.getMainExecutor(app))
     }
 
+    /** El reproductor ya conectado, si lo hay (sin esperar). */
+    fun current(): MediaController? {
+        val f = future ?: return null
+        if (!f.isDone) return null
+        return try {
+            f.get().takeIf { it.isConnected }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun play(context: Context, tracks: List<PlexItem>, startIndex: Int, shuffle: Boolean = false) {
         val start = tracks.getOrNull(startIndex)
         val playable = tracks.filter { it.partKey != null }

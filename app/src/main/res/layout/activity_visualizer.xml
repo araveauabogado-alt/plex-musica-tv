@@ -9,23 +9,35 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <TextView
-        android:id="@+id/songInfo"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"
         android:layout_marginStart="48dp"
         android:layout_marginTop="32dp"
-        android:background="@drawable/vis_label_bg"
-        android:fontFamily="@font/dmsans_medium"
-        android:paddingStart="14dp"
-        android:paddingTop="6dp"
-        android:paddingEnd="14dp"
-        android:paddingBottom="6dp"
-        android:shadowColor="#CC000000"
-        android:shadowRadius="6"
-        android:textColor="#FFFFFFFF"
-        android:textSize="18sp" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- Carátula pequeña: queda siempre visible -->
+        <ImageView
+            android:id="@+id/thumb"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:contentDescription="@null"
+            android:elevation="6dp"
+            android:scaleType="centerCrop" />
+
+        <TextView
+            android:id="@+id/songInfo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:fontFamily="@font/dmsans_medium"
+            android:shadowColor="#CC000000"
+            android:shadowRadius="6"
+            android:textColor="#FFFFFFFF"
+            android:textSize="18sp" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/presetInfo"

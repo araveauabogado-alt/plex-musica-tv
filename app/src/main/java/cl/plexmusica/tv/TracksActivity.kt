@@ -33,6 +33,7 @@ class TracksActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_tracks)
+        Ui.backToNowPlaying(this, isRoot = false)
         findViewById<TextView>(R.id.header).text = intent.getStringExtra("title")
         findViewById<TextView>(R.id.subheader).text = intent.getStringExtra("subtitle")
         findViewById<ImageView>(R.id.cover).load(Plex.thumbUrl(intent.getStringExtra("thumb"), 500)) {

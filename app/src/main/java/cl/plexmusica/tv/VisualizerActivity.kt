@@ -1,8 +1,6 @@
 package cl.plexmusica.tv
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
@@ -11,13 +9,15 @@ import android.os.Looper
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.graphics.ColorUtils
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
 import coil.imageLoader
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import coil.request.ImageRequest
 
 /**
@@ -30,6 +30,7 @@ class VisualizerActivity : AppCompatActivity() {
     private lateinit var vis: VisualizerView
     private lateinit var info: TextView
     private lateinit var title: TextView
+    private lateinit var thumb: ImageView
     private val handler = Handler(Looper.getMainLooper())
     private var controller: MediaController? = null
     private var lastArt: Uri? = null
@@ -58,6 +59,7 @@ class VisualizerActivity : AppCompatActivity() {
         vis = findViewById(R.id.vis)
         info = findViewById(R.id.presetInfo)
         title = findViewById(R.id.songInfo)
+        thumb = findViewById(R.id.thumb)
         styleIndex = getSharedPreferences("visualizer", Context.MODE_PRIVATE)
             .getInt("style", 0).coerceIn(0, styles.size - 1)
         vis.style = styles[styleIndex]
@@ -133,48 +135,36 @@ class VisualizerActivity : AppCompatActivity() {
         }
     }
 
-    /** Carátula → colores (Palette) y fondo difuminado (la imagen reducida a 16×16 y estirada). */
+    /** Carátula → miniatura en la esquina y colores del degradado (los mismos de Reproduciendo). */
     private fun loadArtwork(uri: Uri?) {
+        thumb.load(uri) {
+            crossfade(true)
+            transformations(RoundedCornersTransformation(8f * resources.displayMetrics.density))
+            placeholder(R.drawable.ic_music)
+            error(R.drawable.ic_music)
+        }
         if (uri == null) {
-            vis.setArtwork(null, null, DEFAULT_1, DEFAULT_2)
+            vis.setArtwork(null, ArtColors.DEFAULT)
             return
         }
         val request = ImageRequest.Builder(this)
             .data(uri)
             .allowHardware(false)
             .target(
-                onError = { vis.setArtwork(null, null, DEFAULT_1, DEFAULT_2) },
+                onError = { vis.setArtwork(null, ArtColors.DEFAULT) },
                 onSuccess = { drawable ->
                     val bmp = (drawable as? BitmapDrawable)?.bitmap
                     if (bmp == null) {
-                        vis.setArtwork(null, null, DEFAULT_1, DEFAULT_2)
+                        vis.setArtwork(null, ArtColors.DEFAULT)
                     } else {
-                        val small = Bitmap.createScaledBitmap(bmp, 16, 16, true)
                         Palette.from(bmp).generate { p ->
-                            if (p == null) {
-                                vis.setArtwork(bmp, small, DEFAULT_1, DEFAULT_2)
-                            } else {
-                                val c1 = bright(p.getVibrantColor(p.getLightVibrantColor(DEFAULT_1)))
-                                val c2 = bright(p.getLightMutedColor(p.getDarkVibrantColor(DEFAULT_2)))
-                                vis.setArtwork(bmp, small, c1, if (c2 == c1) DEFAULT_2 else c2)
-                            }
+                            vis.setArtwork(bmp, if (p == null) ArtColors.DEFAULT else ArtColors.from(p))
                         }
                     }
                 },
             )
             .build()
         imageLoader.enqueue(request)
-    }
-
-    /** Asegura que el color se vea sobre el fondo oscuro. */
-    private fun bright(color: Int): Int {
-        var c = color
-        var i = 0
-        while (ColorUtils.calculateLuminance(c) < 0.3 && i < 8) {
-            c = ColorUtils.blendARGB(c, Color.WHITE, 0.2f)
-            i++
-        }
-        return c
     }
 
     private fun flashInfo() {
@@ -188,8 +178,4 @@ class VisualizerActivity : AppCompatActivity() {
         handler.postDelayed(hideInfo, 4000)
     }
 
-    companion object {
-        private const val DEFAULT_1 = 0xFFE5A00D.toInt()
-        private const val DEFAULT_2 = 0xFFFF6A3D.toInt()
-    }
 }

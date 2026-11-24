@@ -29,6 +29,7 @@ class BrowseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browse)
+        Ui.backToNowPlaying(this, isRoot = false)
         findViewById<TextView>(R.id.header).text = intent.getStringExtra("title")
         status = findViewById(R.id.status)
         grid = findViewById(R.id.grid)

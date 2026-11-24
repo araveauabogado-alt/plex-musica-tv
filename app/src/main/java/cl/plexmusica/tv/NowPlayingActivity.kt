@@ -336,63 +336,14 @@ class NowPlayingActivity : AppCompatActivity() {
                     } else {
                         Palette.from(bmp).generate { p ->
                             if (p == null) return@generate
-                            val base = p.getDarkVibrantColor(p.getDarkMutedColor(p.getDominantColor(defaultBg)))
-                            val second = secondColor(p, base)
-                            val accent = p.getLightVibrantColor(p.getVibrantColor(p.getLightMutedColor(defaultAccent)))
-                            animateColors(readableBg(base), readableBg(second), readableAccent(accent))
+                            val sc = ArtColors.from(p)
+                            animateColors(sc.bg1, sc.bg2, sc.accent)
                         }
                     }
                 },
             )
             .build()
         imageLoader.enqueue(request)
-    }
-
-    /**
-     * Segundo color del degradado: el tono de la carátula más distinto al principal
-     * (se ignoran grises). Si todos son parecidos, usa el tono apagado de la carátula.
-     */
-    private fun secondColor(p: Palette, base: Int): Int {
-        val hslBase = FloatArray(3)
-        ColorUtils.colorToHSL(base, hslBase)
-        val total = p.swatches.sumOf { it.population }.coerceAtLeast(1)
-        var best: Int? = null
-        var bestScore = 0f
-        for (sw in p.swatches) {
-            val hsl = FloatArray(3)
-            ColorUtils.colorToHSL(sw.rgb, hsl)
-            if (hsl[1] < 0.15f || hsl[2] < 0.06f) continue // grises y casi negros no aportan
-            val dh = abs(hsl[0] - hslBase[0]).let { if (it > 180f) 360f - it else it }
-            if (dh < 25f) continue
-            val score = dh * hsl[1] * (0.4f + sw.population.toFloat() / total)
-            if (score > bestScore) {
-                bestScore = score
-                best = sw.rgb
-            }
-        }
-        return best ?: p.getMutedColor(p.getDarkMutedColor(ColorUtils.blendARGB(base, Color.BLACK, 0.5f)))
-    }
-
-    /** Oscurece el color hasta que el texto blanco se lea bien. */
-    private fun readableBg(color: Int): Int {
-        var c = color
-        var i = 0
-        while (ColorUtils.calculateLuminance(c) > 0.12 && i < 10) {
-            c = ColorUtils.blendARGB(c, Color.BLACK, 0.2f)
-            i++
-        }
-        return c
-    }
-
-    /** Aclara el acento para que destaque sobre el fondo oscuro. */
-    private fun readableAccent(color: Int): Int {
-        var c = color
-        var i = 0
-        while (ColorUtils.calculateLuminance(c) < 0.35 && i < 10) {
-            c = ColorUtils.blendARGB(c, Color.WHITE, 0.2f)
-            i++
-        }
-        return c
     }
 
     private fun animateColors(toBg: Int, toBg2: Int, toAccent: Int) {
@@ -419,7 +370,7 @@ class NowPlayingActivity : AppCompatActivity() {
         currentBg2 = bg2
         currentAccent = accent
         // Diagonal: color principal arriba a la izquierda, segundo color abajo a la derecha.
-        gradient.setColors(intArrayOf(bg, ColorUtils.blendARGB(bg, bg2, 0.6f), ColorUtils.blendARGB(bg2, Color.BLACK, 0.35f)))
+        gradient.setColors(ArtColors.gradient(bg, bg2))
         artist.setTextColor(accent)
         progress.progressTintList = ColorStateList.valueOf(accent)
         waveform.playedColor = accent

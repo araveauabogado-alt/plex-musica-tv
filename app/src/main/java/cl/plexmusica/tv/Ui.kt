@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -72,6 +73,35 @@ object Ui {
         val s = ms / 1000
         return if (s >= 3600) "%d:%02d:%02d".format(s / 3600, (s / 60) % 60, s % 60)
         else "%d:%02d".format(s / 60, s % 60)
+    }
+
+    /**
+     * En las pantallas de biblioteca, el botón Atrás del control lleva a "Reproduciendo"
+     * si hay música en la cola. Desde Reproduciendo, Atrás vuelve a la biblioteca.
+     * Sin música, Atrás funciona como siempre.
+     */
+    fun backToNowPlaying(activity: AppCompatActivity, isRoot: Boolean) {
+        activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                val c = PlayerConnection.current()
+                if (c != null && c.mediaItemCount > 0) {
+                    if (isRoot) {
+                        activity.startActivity(Intent(activity, NowPlayingActivity::class.java))
+                    } else {
+                        // Se vuelve a la pantalla principal (cerrando las intermedias) y desde ahí se abre Reproduciendo.
+                        activity.startActivity(
+                            Intent(activity, MainActivity::class.java)
+                                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                .putExtra(MainActivity.EXTRA_NOW_PLAYING, true)
+                        )
+                    }
+                } else {
+                    isEnabled = false
+                    activity.onBackPressedDispatcher.onBackPressed()
+                    isEnabled = true
+                }
+            }
+        })
     }
 
     /** Canciones que representa un elemento (para agregarlo a la cola). */

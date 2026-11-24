@@ -56,26 +56,29 @@ class VisualizerView @JvmOverloads constructor(
     private val waveSmooth = FloatArray(160)
     private var runningMax = 1e-3f
 
-    private var color1 = 0xFFE5A00D.toInt()
-    private var color2 = 0xFFFF6A3D.toInt()
-    private var background: Bitmap? = null
+    // Colores actuales (se acercan suavemente a los de la carátula nueva al cambiar de canción).
+    private var color1 = ArtColors.DEFAULT.accent
+    private var color2 = ArtColors.DEFAULT.accent2
+    private var bg1 = ArtColors.DEFAULT.bg1
+    private var bg2 = ArtColors.DEFAULT.bg2
+    private var target = ArtColors.DEFAULT
     private var art: Bitmap? = null
+    private val bgPaintGrad = Paint()
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val bgPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val artPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val rect = RectF()
     private val path = Path()
     private val matrix = Matrix()
 
-    /** Colores y carátula de la canción actual. [bg] es una versión muy pequeña: al estirarla queda difuminada. */
-    fun setArtwork(art: Bitmap?, bg: Bitmap?, c1: Int, c2: Int) {
+    /** Carátula y colores de la canción actual (los mismos del fondo de Reproduciendo). */
+    fun setArtwork(art: Bitmap?, scheme: ArtColors.Scheme) {
         this.art = art
-        background = bg
-        color1 = c1
-        color2 = c2
+        target = scheme
         invalidate()
     }
+
+    private fun approach(from: Int, to: Int) = ColorUtils.blendARGB(from, to, 0.06f)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -142,15 +145,15 @@ class VisualizerView @JvmOverloads constructor(
         val w = width.toFloat()
         val h = height.toFloat()
 
-        // Fondo: carátula muy ampliada (difuminada) y oscurecida.
-        val bg = background
-        if (bg != null) {
-            rect.set(0f, 0f, w, h)
-            canvas.drawBitmap(bg, null, rect, bgPaint)
-            canvas.drawColor(ColorUtils.setAlphaComponent(Color.BLACK, (150 - bass * 40).toInt().coerceIn(90, 170)))
-        } else {
-            canvas.drawColor(Color.BLACK)
-        }
+        // Fondo: el mismo degradado de dos colores de Reproduciendo.
+        color1 = approach(color1, target.accent)
+        color2 = approach(color2, target.accent2)
+        bg1 = approach(bg1, target.bg1)
+        bg2 = approach(bg2, target.bg2)
+        bgPaintGrad.shader = LinearGradient(0f, 0f, w, h, ArtColors.gradient(bg1, bg2), null, Shader.TileMode.CLAMP)
+        canvas.drawRect(0f, 0f, w, h, bgPaintGrad)
+        // leve pulso de luz con los graves
+        canvas.drawColor(ColorUtils.setAlphaComponent(color1, (bass * 18).toInt().coerceIn(0, 18)))
 
         when (style) {
             Style.SPECTRUM -> drawSpectrum(canvas, w, h)

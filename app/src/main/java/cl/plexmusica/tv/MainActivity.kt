@@ -22,6 +22,10 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 
 class MainActivity : AppCompatActivity() {
+    companion object {
+        const val EXTRA_NOW_PLAYING = "openNowPlaying"
+    }
+
     private enum class Tab { HOME, ARTISTS, ALBUMS, PLAYLISTS, SEARCH }
 
     private val prefs get() = Plex.prefs
@@ -93,6 +97,7 @@ class MainActivity : AppCompatActivity() {
 
         tabButtons.getValue(Tab.HOME).requestFocus()
         select(Tab.HOME)
+        Ui.backToNowPlaying(this, isRoot = true)
 
         // Si ya hay música sonando al abrir la app, se muestra directo "Reproduciendo".
         if (savedInstanceState == null) {
@@ -101,6 +106,13 @@ class MainActivity : AppCompatActivity() {
                     startActivity(Intent(this, NowPlayingActivity::class.java))
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_NOW_PLAYING, false)) {
+            startActivity(Intent(this, NowPlayingActivity::class.java))
         }
     }
 
