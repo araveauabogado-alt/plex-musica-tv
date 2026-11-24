@@ -45,7 +45,7 @@
             android:orientation="horizontal">
 
             <Button android:id="@+id/btnPlayAll" style="@style/TvButton" android:text="@string/play_all" />
-            <Button android:id="@+id/btnShuffle" style="@style/TvButton" android:text="@string/shuffle" />
+            <ImageButton android:id="@+id/btnShuffle" style="@style/RoundButton" android:layout_width="42dp" android:layout_height="42dp" android:padding="9dp" android:contentDescription="@string/shuffle" android:src="@drawable/ic_shuffle" />
         </LinearLayout>
     </LinearLayout>
 

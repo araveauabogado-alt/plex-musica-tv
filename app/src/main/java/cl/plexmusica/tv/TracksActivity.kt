@@ -3,6 +3,7 @@ package cl.plexmusica.tv
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
@@ -45,7 +46,7 @@ class TracksActivity : AppCompatActivity() {
 
         val btnPlay = findViewById<Button>(R.id.btnPlayAll)
         btnPlay.setOnClickListener { play(0, false) }
-        findViewById<Button>(R.id.btnShuffle).setOnClickListener { play(0, true) }
+        findViewById<View>(R.id.btnShuffle).setOnClickListener { play(0, true) }
         btnPlay.requestFocus()
 
         val path = intent.getStringExtra("path") ?: return

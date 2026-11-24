@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
@@ -57,6 +58,7 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var btnPlay: ImageButton
     private lateinit var btnShuffle: ImageButton
     private lateinit var waveform: WaveformView
+    private lateinit var seekHint: TextView
     private var waveKey: String? = null
     private var waveJob: Job? = null
 
@@ -89,6 +91,20 @@ class NowPlayingActivity : AppCompatActivity() {
         btnPlay = findViewById(R.id.btnPlay)
         btnShuffle = findViewById(R.id.btnShuffleMode)
         waveform = findViewById(R.id.waveform)
+        seekHint = findViewById(R.id.seekHint)
+        val seekArea = findViewById<View>(R.id.seekArea)
+        seekArea.setOnFocusChangeListener { _, has ->
+            seekHint.visibility = if (has) View.VISIBLE else View.INVISIBLE
+        }
+        seekArea.setOnKeyListener { _, keyCode, event ->
+            if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
+            when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT -> { seekBy(-stepFor(event)); true }
+                KeyEvent.KEYCODE_DPAD_RIGHT -> { seekBy(stepFor(event)); true }
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { togglePlay(); true }
+                else -> false
+            }
+        }
         findViewById<ImageButton>(R.id.btnQueue).setOnClickListener {
             startActivity(Intent(this, QueueActivity::class.java))
         }
@@ -137,6 +153,19 @@ class NowPlayingActivity : AppCompatActivity() {
         return super.onKeyDown(keyCode, event)
     }
 
+    /** 10 s por toque; si se mantiene apretado, avanza cada vez más rápido (hasta 60 s). */
+    private fun stepFor(event: KeyEvent): Long =
+        (10_000L * (1 + event.repeatCount / 4)).coerceAtMost(60_000L)
+
+    private fun seekBy(deltaMs: Long) {
+        val c = controller ?: return
+        val dur = c.duration
+        var target = (c.currentPosition + deltaMs).coerceAtLeast(0)
+        if (dur > 0 && dur != C.TIME_UNSET) target = target.coerceAtMost(dur - 1000)
+        c.seekTo(target)
+        updateProgress()
+    }
+
     private fun togglePlay() {
         val c = controller ?: return
         if (c.isPlaying) {
@@ -160,10 +189,10 @@ class NowPlayingActivity : AppCompatActivity() {
             artist.text = md.artist ?: ""
             album.text = md.albumTitle ?: ""
         }
-        val key = c.currentMediaItem?.mediaId
-        if (key != waveKey) {
-            waveKey = key
-            loadWaveform(key)
+        val item = c.currentMediaItem
+        if (item?.mediaId != waveKey) {
+            waveKey = item?.mediaId
+            loadWaveform(item)
         }
         if (md.artworkUri != lastArt || lastArt == null) {
             lastArt = md.artworkUri
@@ -182,23 +211,35 @@ class NowPlayingActivity : AppCompatActivity() {
 
     // ---------- Forma de onda ----------
 
-    private fun loadWaveform(key: String?) {
+    private fun loadWaveform(item: MediaItem?) {
         waveJob?.cancel()
         waveform.visibility = View.INVISIBLE
-        if (key.isNullOrEmpty()) return
+        if (item == null) return
+        val key = item.mediaId
+        if (key.isEmpty()) return
+        LocalWaveform.cached(key)?.let { showWave(it); return }
         waveJob = lifecycleScope.launch {
-            val levels = try {
+            // 1) Niveles que Plex ya tiene analizados (rápido).
+            var levels = try {
                 Plex.waveform(key)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 null
             }
-            if (levels != null && waveKey == key) {
-                waveform.setLevels(levels)
-                waveform.visibility = View.VISIBLE
+            // 2) Si Plex no los tiene, se calculan en la TV decodificando el audio.
+            if (levels == null) {
+                val url = (item.requestMetadata.mediaUri ?: item.localConfiguration?.uri)?.toString()
+                val dur = item.mediaMetadata.extras?.getLong("duration") ?: 0L
+                if (url != null) levels = LocalWaveform.compute(key, url, dur)
             }
+            if (levels != null && waveKey == key) showWave(levels)
         }
+    }
+
+    private fun showWave(levels: FloatArray) {
+        waveform.setLevels(levels)
+        waveform.visibility = View.VISIBLE
     }
 
     // ---------- Fondo según los colores de la carátula ----------

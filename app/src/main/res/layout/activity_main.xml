@@ -23,12 +23,12 @@
             android:padding="6dp">
 
             <Button android:id="@+id/btnHome" style="@style/TvButton" android:text="@string/tab_home" />
+            <Button android:id="@+id/btnNowPlaying" style="@style/TvButton" android:text="@string/now_playing" />
             <Button android:id="@+id/btnArtists" style="@style/TvButton" android:text="@string/tab_artists" />
             <Button android:id="@+id/btnAlbums" style="@style/TvButton" android:text="@string/tab_albums" />
             <Button android:id="@+id/btnPlaylists" style="@style/TvButton" android:text="@string/tab_playlists" />
             <Button android:id="@+id/btnSearch" style="@style/TvButton" android:text="@string/tab_search" />
             <Button android:id="@+id/btnSort" style="@style/TvButton" android:text="@string/sort_az" />
-            <Button android:id="@+id/btnNowPlaying" style="@style/TvButton" android:text="@string/now_playing" />
             <Button android:id="@+id/btnLibrary" style="@style/TvButton" android:visibility="gone" />
             <Button android:id="@+id/btnLogout" style="@style/TvButton" android:text="@string/logout" />
         </LinearLayout>

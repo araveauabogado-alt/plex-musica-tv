@@ -36,7 +36,7 @@ class BrowseActivity : AppCompatActivity() {
 
         val playAll = intent.getStringExtra("playAll")
         val btnPlay = findViewById<Button>(R.id.btnPlayAll)
-        val btnShuffle = findViewById<Button>(R.id.btnShuffle)
+        val btnShuffle = findViewById<View>(R.id.btnShuffle)
         if (playAll == null) {
             btnPlay.visibility = View.GONE
             btnShuffle.visibility = View.GONE
