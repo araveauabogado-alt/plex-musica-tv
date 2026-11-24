@@ -21,7 +21,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : TvActivity() {
     companion object {
         const val EXTRA_NOW_PLAYING = "openNowPlaying"
         const val EXTRA_HOME = "openHome"
@@ -108,6 +108,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /** Atrás mantenido: el foco sube a la pestaña actual. */
+    override fun onBackLongPress(): Boolean {
+        if (!::tabButtons.isInitialized) return false
+        tabButtons.getValue(current).requestFocus()
+        return true
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -3,13 +3,13 @@
     android:layout_width="match_parent"
     android:layout_height="64dp">
 
-    <!-- La carátula se puede seleccionar: lleva a Inicio -->
+    <!-- La carátula se puede seleccionar: abre Reproduciendo -->
     <ImageView
         android:id="@+id/barArt"
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:clickable="true"
-        android:contentDescription="@string/bar_home"
+        android:contentDescription="@string/bar_open"
         android:focusable="true"
         android:foreground="@drawable/bar_art_focus"
         android:scaleType="centerCrop" />

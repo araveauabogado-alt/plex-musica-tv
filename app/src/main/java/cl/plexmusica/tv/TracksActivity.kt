@@ -16,7 +16,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Lista de canciones de un álbum o una playlist. */
-class TracksActivity : AppCompatActivity() {
+class TracksActivity : TvActivity() {
+    /** Atrás mantenido: el foco sube a los botones de arriba (Reproducir). */
+    override fun onBackLongPress(): Boolean {
+        val play = findViewById<View>(R.id.btnPlayAll)
+        return play.visibility == View.VISIBLE && play.requestFocus()
+    }
+
     companion object {
         fun intent(ctx: Context, title: String, subtitle: String, thumb: String?, path: String): Intent =
             Intent(ctx, TracksActivity::class.java)

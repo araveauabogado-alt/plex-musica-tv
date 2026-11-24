@@ -49,12 +49,7 @@ class NowPlayingBar @JvmOverloads constructor(
         btnToggle = findViewById(R.id.barToggle)
         visibility = GONE
         art.setOnClickListener {
-            // Vuelve a la pantalla principal (cerrando las intermedias) en la pestaña Inicio.
-            context.startActivity(
-                Intent(context, MainActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    .putExtra(MainActivity.EXTRA_HOME, true)
-            )
+            context.startActivity(Intent(context, NowPlayingActivity::class.java))
         }
         findViewById<ImageButton>(R.id.barPrev).setOnClickListener { controller?.seekToPrevious() }
         findViewById<ImageButton>(R.id.barNext).setOnClickListener { controller?.seekToNext() }

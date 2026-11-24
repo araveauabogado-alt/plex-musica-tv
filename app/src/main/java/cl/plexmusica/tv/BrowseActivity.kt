@@ -14,7 +14,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /** Cuadrícula genérica: por ejemplo, los álbumes de un artista. */
-class BrowseActivity : AppCompatActivity() {
+class BrowseActivity : TvActivity() {
+    /** Atrás mantenido: el foco sube a los botones de arriba (Reproducir). */
+    override fun onBackLongPress(): Boolean {
+        val play = findViewById<View>(R.id.btnPlayAll)
+        return play.visibility == View.VISIBLE && play.requestFocus()
+    }
+
     companion object {
         fun intent(ctx: Context, title: String, path: String, playAllPath: String?): Intent =
             Intent(ctx, BrowseActivity::class.java)

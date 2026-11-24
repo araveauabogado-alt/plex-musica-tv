@@ -41,6 +41,7 @@ class VisualizerActivity : AppCompatActivity() {
     private val hideInfo = Runnable {
         info.animate().alpha(0f).setDuration(600).start()
         title.animate().alpha(0f).setDuration(600).start()
+        thumb.animate().alpha(0f).setDuration(600).start()
     }
 
     private val listener = object : Player.Listener {
@@ -171,8 +172,10 @@ class VisualizerActivity : AppCompatActivity() {
         handler.removeCallbacks(hideInfo)
         info.animate().cancel()
         title.animate().cancel()
+        thumb.animate().cancel()
         info.alpha = 1f
         title.alpha = 1f
+        thumb.alpha = 1f
         info.visibility = View.VISIBLE
         title.visibility = View.VISIBLE
         handler.postDelayed(hideInfo, 4000)
