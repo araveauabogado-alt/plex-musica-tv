@@ -8,8 +8,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import java.text.Collator
 import java.text.Normalizer
 import java.util.Locale
@@ -17,11 +23,11 @@ import kotlin.math.max
 
 object Ui {
     val focusScale = View.OnFocusChangeListener { v, hasFocus ->
-        val s = if (hasFocus) 1.08f else 1f
+        val s = if (hasFocus) 1.1f else 1f
         v.animate().scaleX(s).scaleY(s).setDuration(120).start()
     }
 
-    fun spanCount(context: Context, itemDp: Int = 180): Int {
+    fun spanCount(context: Context, itemDp: Int = 120): Int {
         val dm = context.resources.displayMetrics
         return max(2, ((dm.widthPixels / dm.density - 96) / itemDp).toInt())
     }
@@ -57,6 +63,44 @@ object Ui {
         else "%d:%02d".format(s / 60, s % 60)
     }
 
+    /** Canciones que representa un elemento (para agregarlo a la cola). */
+    suspend fun tracksOf(item: PlexItem): List<PlexItem> = when (item.type) {
+        "track" -> listOf(item)
+        "album" -> Plex.items("/library/metadata/${item.ratingKey}/children")
+        "artist" -> Plex.items("/library/metadata/${item.ratingKey}/allLeaves")
+        "playlist" -> Plex.items(item.key)
+        else -> emptyList()
+    }.filter { it.type == "track" }
+
+    /** Menú al mantener presionado OK: reproducir a continuación o agregar al final de la cola. */
+    fun queueMenu(activity: AppCompatActivity, item: PlexItem) {
+        val options = arrayOf(
+            activity.getString(R.string.queue_next),
+            activity.getString(R.string.queue_end),
+        )
+        AlertDialog.Builder(activity)
+            .setTitle(item.title)
+            .setItems(options) { _, which ->
+                activity.lifecycleScope.launch {
+                    try {
+                        val tracks = tracksOf(item)
+                        PlayerConnection.enqueue(activity, tracks, next = which == 0) { n ->
+                            Toast.makeText(
+                                activity,
+                                activity.resources.getQuantityString(R.plurals.added_to_queue, n, n),
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Toast.makeText(activity, activity.getString(R.string.error_simple, e.message ?: ""), Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .show()
+    }
+
     fun open(activity: Activity, item: PlexItem, siblings: List<PlexItem>) {
         when (item.type) {
             "artist" -> activity.startActivity(
@@ -86,6 +130,7 @@ object Ui {
 
 class CardAdapter(
     private val items: List<PlexItem>,
+    private val onLongClick: ((PlexItem) -> Unit)? = null,
     private val onClick: (PlexItem) -> Unit,
 ) : RecyclerView.Adapter<CardAdapter.VH>() {
 
@@ -105,12 +150,16 @@ class CardAdapter(
         val item = items[position]
         holder.title.text = item.title
         holder.sub.text = item.subtitle
-        holder.img.load(Plex.thumbUrl(item.thumb)) {
+        holder.img.load(Plex.thumbUrl(item.thumb, 220)) {
             crossfade(true)
             placeholder(R.drawable.ic_music)
             error(R.drawable.ic_music)
         }
         holder.itemView.setOnClickListener { onClick(item) }
+        holder.itemView.setOnLongClickListener {
+            onLongClick?.invoke(item)
+            onLongClick != null
+        }
     }
 
     override fun getItemCount() = items.size
@@ -119,6 +168,7 @@ class CardAdapter(
 class TrackAdapter(
     private val items: List<PlexItem>,
     private val showArtist: Boolean,
+    private val onLongClick: ((Int) -> Unit)? = null,
     private val onClick: (Int) -> Unit,
 ) : RecyclerView.Adapter<TrackAdapter.VH>() {
 
@@ -140,6 +190,10 @@ class TrackAdapter(
         holder.sub.visibility = if (showArtist && item.artist.isNotEmpty()) View.VISIBLE else View.GONE
         holder.dur.text = Ui.time(item.duration)
         holder.itemView.setOnClickListener { onClick(holder.bindingAdapterPosition) }
+        holder.itemView.setOnLongClickListener {
+            onLongClick?.invoke(holder.bindingAdapterPosition)
+            onLongClick != null
+        }
     }
 
     override fun getItemCount() = items.size

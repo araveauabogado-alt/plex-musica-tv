@@ -44,4 +44,24 @@
     <string name="cd_play">Reproducir o pausar</string>
     <string name="cd_next">Siguiente</string>
     <string name="cd_shuffle">Aleatorio</string>
+    <string name="cd_queue">Cola de reproducción</string>
+
+    <string name="queue_title">Cola de reproducción</string>
+    <string name="queue_clear">Vaciar lo que sigue</string>
+    <string name="queue_empty">La cola está vacía.</string>
+    <string name="queue_now">SONANDO</string>
+    <string name="queue_hint">OK: reproducir · Mantén OK: más opciones</string>
+    <string name="queue_play_now">Reproducir ahora</string>
+    <string name="queue_remove">Quitar de la cola</string>
+    <string name="queue_next">Reproducir a continuación</string>
+    <string name="queue_end">Agregar al final de la cola</string>
+    <string name="long_press_hint">Mantén OK para agregar a la cola</string>
+    <plurals name="queue_upcoming">
+        <item quantity="one">%d canción a continuación</item>
+        <item quantity="other">%d canciones a continuación</item>
+    </plurals>
+    <plurals name="added_to_queue">
+        <item quantity="one">%d canción agregada a la cola</item>
+        <item quantity="other">%d canciones agregadas a la cola</item>
+    </plurals>
 </resources>

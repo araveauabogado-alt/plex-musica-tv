@@ -85,6 +85,15 @@ class MainActivity : AppCompatActivity() {
 
         tabButtons.getValue(Tab.ARTISTS).requestFocus()
         select(Tab.ARTISTS)
+
+        // Si ya hay música sonando al abrir la app, se muestra directo "Reproduciendo".
+        if (savedInstanceState == null) {
+            PlayerConnection.get(this) { c ->
+                if (!isFinishing && c.mediaItemCount > 0 && c.playWhenReady) {
+                    startActivity(Intent(this, NowPlayingActivity::class.java))
+                }
+            }
+        }
     }
 
     private fun setStatus(text: String) {
@@ -165,7 +174,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun show(items: List<PlexItem>, letters: Boolean) {
-        grid.adapter = CardAdapter(items) { Ui.open(this, it, items) }
+        grid.adapter = CardAdapter(items, { Ui.queueMenu(this, it) }) { Ui.open(this, it, items) }
         buildLetters(items, letters)
         setStatus(if (items.isEmpty()) getString(R.string.empty) else "")
     }

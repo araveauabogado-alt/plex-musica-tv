@@ -2,17 +2,17 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
+    android:layout_margin="6dp"
     android:background="@drawable/card_bg"
     android:clickable="true"
     android:focusable="true"
     android:orientation="vertical"
-    android:padding="8dp">
+    android:padding="6dp">
 
-    <ImageView
+    <cl.plexmusica.tv.SquareImageView
         android:id="@+id/img"
         android:layout_width="match_parent"
-        android:layout_height="150dp"
+        android:layout_height="wrap_content"
         android:contentDescription="@null"
         android:scaleType="centerCrop" />
 
@@ -20,11 +20,12 @@
         android:id="@+id/title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="5dp"
         android:ellipsize="end"
+        android:fontFamily="@font/dmsans_medium"
         android:singleLine="true"
         android:textColor="@color/text"
-        android:textSize="15sp" />
+        android:textSize="13sp" />
 
     <TextView
         android:id="@+id/sub"
@@ -33,5 +34,5 @@
         android:ellipsize="end"
         android:singleLine="true"
         android:textColor="@color/sub"
-        android:textSize="13sp" />
+        android:textSize="11sp" />
 </LinearLayout>

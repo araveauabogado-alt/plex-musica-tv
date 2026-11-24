@@ -3,6 +3,7 @@ package cl.plexmusica.tv
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -99,6 +100,23 @@ object PlayerConnection {
         }
     }
 
+    /** Agrega canciones a la cola: a continuación de la actual, o al final. */
+    fun enqueue(context: Context, tracks: List<PlexItem>, next: Boolean, onDone: (Int) -> Unit = {}) {
+        val items = tracks.filter { it.partKey != null }.map { toMediaItem(it) }
+        if (items.isEmpty()) return
+        get(context) { c ->
+            if (c.mediaItemCount == 0) {
+                c.setMediaItems(items)
+                c.prepare()
+                c.play()
+            } else {
+                val at = if (next) c.currentMediaItemIndex + 1 else c.mediaItemCount
+                c.addMediaItems(at, items)
+            }
+            onDone(items.size)
+        }
+    }
+
     private fun toMediaItem(t: PlexItem): MediaItem {
         val url = Plex.streamUrl(t.partKey ?: "")
         val art = Plex.thumbUrl(t.thumb, 600)?.let { Uri.parse(it) }
@@ -112,6 +130,7 @@ object PlayerConnection {
                     .setArtist(t.artist)
                     .setAlbumTitle(t.album)
                     .setArtworkUri(art)
+                    .setExtras(Bundle().apply { putLong("duration", t.duration) })
                     .build()
             )
             .build()

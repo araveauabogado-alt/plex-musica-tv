@@ -50,7 +50,7 @@ class BrowseActivity : AppCompatActivity() {
             status.text = getString(R.string.loading)
             try {
                 val items = Plex.items(path)
-                grid.adapter = CardAdapter(items) { Ui.open(this@BrowseActivity, it, items) }
+                grid.adapter = CardAdapter(items, { Ui.queueMenu(this@BrowseActivity, it) }) { Ui.open(this@BrowseActivity, it, items) }
                 status.text = if (items.isEmpty()) getString(R.string.empty) else ""
                 grid.post { grid.getChildAt(0)?.requestFocus() }
             } catch (e: CancellationException) {

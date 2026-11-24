@@ -54,9 +54,9 @@ class TracksActivity : AppCompatActivity() {
             try {
                 tracks = Plex.items(path).filter { it.type == "track" }
                 val variedArtists = tracks.map { it.artist }.distinct().size > 1
-                list.adapter = TrackAdapter(tracks, variedArtists) { play(it, false) }
+                list.adapter = TrackAdapter(tracks, variedArtists, { i -> tracks.getOrNull(i)?.let { Ui.queueMenu(this@TracksActivity, it) } }) { play(it, false) }
                 val total = tracks.sumOf { it.duration }
-                status.text = getString(R.string.tracks_summary, tracks.size, Ui.time(total))
+                status.text = getString(R.string.tracks_summary, tracks.size, Ui.time(total)) + "   ·   " + getString(R.string.long_press_hint)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

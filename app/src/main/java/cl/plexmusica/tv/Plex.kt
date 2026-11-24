@@ -187,6 +187,33 @@ object Plex {
         return listOf("artist", "album", "playlist", "track").flatMap { byType[it] ?: emptyList() }
     }
 
+    /**
+     * Niveles de volumen de la canción para dibujar la forma de onda.
+     * Plex solo los tiene si el servidor analizó el volumen (loudness) de la pista; si no, devuelve null.
+     */
+    suspend fun waveform(ratingKey: String, bars: Int = 96): FloatArray? {
+        val md = container("/library/metadata/$ratingKey").optJSONArray("Metadata")?.optJSONObject(0) ?: return null
+        val streams = md.optJSONArray("Media")?.optJSONObject(0)
+            ?.optJSONArray("Part")?.optJSONObject(0)
+            ?.optJSONArray("Stream") ?: return null
+        var streamId: String? = null
+        for (i in 0 until streams.length()) {
+            val s = streams.getJSONObject(i)
+            if (s.optInt("streamType") == 2) {
+                streamId = s.str("id")
+                break
+            }
+        }
+        if (streamId == null) return null
+        val lv = container("/library/streams/$streamId/levels?subsample=$bars").optJSONArray("Level") ?: return null
+        if (lv.length() < 8) return null
+        val raw = FloatArray(lv.length()) { lv.getJSONObject(it).optDouble("v", -60.0).toFloat() }
+        val hi = raw.maxOrNull() ?: return null
+        val lo = maxOf(raw.minOrNull() ?: -60f, hi - 40f)
+        val range = (hi - lo).takeIf { it > 0.5f } ?: return null
+        return FloatArray(raw.size) { ((raw[it] - lo) / range).coerceIn(0.08f, 1f) }
+    }
+
     private fun parse(o: JSONObject): PlexItem {
         val type = o.str("type") ?: ""
         val artist = when (type) {

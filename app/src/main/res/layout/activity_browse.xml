@@ -24,7 +24,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/text"
-            android:textSize="30sp"
+            android:textSize="26sp"
             android:textStyle="bold" />
 
         <Button android:id="@+id/btnPlayAll" style="@style/TvButton" android:text="@string/play_all" />

@@ -12,8 +12,8 @@
 
     <ImageView
         android:id="@+id/cover"
-        android:layout_width="380dp"
-        android:layout_height="380dp"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
         android:contentDescription="@null"
         android:scaleType="centerCrop" />
 
@@ -32,7 +32,7 @@
             android:ellipsize="end"
             android:maxLines="2"
             android:textColor="@color/text"
-            android:textSize="34sp"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <TextView
@@ -42,7 +42,7 @@
             android:layout_marginTop="6dp"
             android:singleLine="true"
             android:textColor="@color/accent"
-            android:textSize="22sp" />
+            android:textSize="20sp" />
 
         <TextView
             android:id="@+id/album"
@@ -52,12 +52,19 @@
             android:textColor="@color/sub"
             android:textSize="18sp" />
 
+        <cl.plexmusica.tv.WaveformView
+            android:id="@+id/waveform"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:layout_marginTop="28dp"
+            android:visibility="invisible" />
+
         <ProgressBar
             android:id="@+id/progress"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:layout_marginTop="32dp"
+            android:layout_height="4dp"
+            android:layout_marginTop="8dp"
             android:max="1000"
             android:progressBackgroundTint="#55FFFFFF"
             android:progressTint="@color/accent" />
@@ -96,6 +103,7 @@
             <ImageButton android:id="@+id/btnPlay" style="@style/RoundButton" android:layout_width="80dp" android:layout_height="80dp" android:contentDescription="@string/cd_play" android:src="@drawable/ic_play" />
             <ImageButton android:id="@+id/btnNext" style="@style/RoundButton" android:contentDescription="@string/cd_next" android:src="@drawable/ic_next" />
             <ImageButton android:id="@+id/btnShuffleMode" style="@style/RoundButton" android:contentDescription="@string/cd_shuffle" android:src="@drawable/ic_shuffle" />
+            <ImageButton android:id="@+id/btnQueue" style="@style/RoundButton" android:contentDescription="@string/cd_queue" android:src="@drawable/ic_queue" />
         </LinearLayout>
 
         <TextView

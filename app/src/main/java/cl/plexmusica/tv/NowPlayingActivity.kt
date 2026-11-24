@@ -1,6 +1,7 @@
 package cl.plexmusica.tv
 
 import android.animation.ValueAnimator
+import android.content.Intent
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
@@ -18,12 +19,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.ColorUtils
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.palette.graphics.Palette
 import coil.imageLoader
 import coil.request.ImageRequest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /** Pantalla "Reproduciendo": carátula grande y controles. */
 class NowPlayingActivity : AppCompatActivity() {
@@ -51,11 +56,14 @@ class NowPlayingActivity : AppCompatActivity() {
     private lateinit var nextUp: TextView
     private lateinit var btnPlay: ImageButton
     private lateinit var btnShuffle: ImageButton
+    private lateinit var waveform: WaveformView
+    private var waveKey: String? = null
+    private var waveJob: Job? = null
 
     private val ticker = object : Runnable {
         override fun run() {
             updateProgress()
-            handler.postDelayed(this, 500)
+            handler.postDelayed(this, 250)
         }
     }
 
@@ -80,6 +88,10 @@ class NowPlayingActivity : AppCompatActivity() {
         nextUp = findViewById(R.id.nextUp)
         btnPlay = findViewById(R.id.btnPlay)
         btnShuffle = findViewById(R.id.btnShuffleMode)
+        waveform = findViewById(R.id.waveform)
+        findViewById<ImageButton>(R.id.btnQueue).setOnClickListener {
+            startActivity(Intent(this, QueueActivity::class.java))
+        }
 
         findViewById<ImageButton>(R.id.btnPrev).setOnClickListener { controller?.seekToPrevious() }
         findViewById<ImageButton>(R.id.btnNext).setOnClickListener { controller?.seekToNext() }
@@ -148,6 +160,11 @@ class NowPlayingActivity : AppCompatActivity() {
             artist.text = md.artist ?: ""
             album.text = md.albumTitle ?: ""
         }
+        val key = c.currentMediaItem?.mediaId
+        if (key != waveKey) {
+            waveKey = key
+            loadWaveform(key)
+        }
         if (md.artworkUri != lastArt || lastArt == null) {
             lastArt = md.artworkUri
             applyArtwork(md.artworkUri)
@@ -161,6 +178,27 @@ class NowPlayingActivity : AppCompatActivity() {
             getString(R.string.next_up, n.title ?: "", n.artist ?: "")
         } else ""
         updateProgress()
+    }
+
+    // ---------- Forma de onda ----------
+
+    private fun loadWaveform(key: String?) {
+        waveJob?.cancel()
+        waveform.visibility = View.INVISIBLE
+        if (key.isNullOrEmpty()) return
+        waveJob = lifecycleScope.launch {
+            val levels = try {
+                Plex.waveform(key)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            if (levels != null && waveKey == key) {
+                waveform.setLevels(levels)
+                waveform.visibility = View.VISIBLE
+            }
+        }
     }
 
     // ---------- Fondo según los colores de la carátula ----------
@@ -240,6 +278,7 @@ class NowPlayingActivity : AppCompatActivity() {
         gradient.setColors(intArrayOf(bg, ColorUtils.blendARGB(bg, Color.BLACK, 0.7f)))
         artist.setTextColor(accent)
         progress.progressTintList = ColorStateList.valueOf(accent)
+        waveform.playedColor = accent
     }
 
     private fun updateProgress() {
@@ -249,9 +288,11 @@ class NowPlayingActivity : AppCompatActivity() {
         if (dur > 0 && dur != C.TIME_UNSET) {
             progress.max = 1000
             progress.progress = ((pos * 1000) / dur).toInt()
+            waveform.progress = pos.toFloat() / dur
             duration.text = Ui.time(dur)
         } else {
             progress.progress = 0
+            waveform.progress = 0f
             duration.text = ""
         }
         position.text = Ui.time(pos)
