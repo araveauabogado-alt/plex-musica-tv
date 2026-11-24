@@ -1,7 +1,13 @@
 package cl.plexmusica.tv
 
+import android.animation.ValueAnimator
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.view.View
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
@@ -11,16 +17,29 @@ import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.ColorUtils
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
-import coil.load
+import androidx.palette.graphics.Palette
+import coil.imageLoader
+import coil.request.ImageRequest
 
 /** Pantalla "Reproduciendo": carátula grande y controles. */
 class NowPlayingActivity : AppCompatActivity() {
     private var controller: MediaController? = null
     private val handler = Handler(Looper.getMainLooper())
     private var lastArt: Uri? = null
+
+    private val defaultBg = 0xFF121212.toInt()
+    private val defaultAccent = 0xFFE5A00D.toInt()
+    private var currentBg = defaultBg
+    private var currentAccent = defaultAccent
+    private var colorAnimator: ValueAnimator? = null
+    private val gradient = GradientDrawable(
+        GradientDrawable.Orientation.TL_BR,
+        intArrayOf(defaultBg, Color.BLACK),
+    )
 
     private lateinit var cover: ImageView
     private lateinit var title: TextView
@@ -50,6 +69,7 @@ class NowPlayingActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_now_playing)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        findViewById<View>(R.id.root).background = gradient
         cover = findViewById(R.id.cover)
         title = findViewById(R.id.title)
         artist = findViewById(R.id.artist)
@@ -68,6 +88,12 @@ class NowPlayingActivity : AppCompatActivity() {
             controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
         }
         btnPlay.requestFocus()
+        setColors(defaultBg, defaultAccent)
+    }
+
+    override fun onDestroy() {
+        colorAnimator?.cancel()
+        super.onDestroy()
     }
 
     override fun onStart() {
@@ -124,11 +150,7 @@ class NowPlayingActivity : AppCompatActivity() {
         }
         if (md.artworkUri != lastArt || lastArt == null) {
             lastArt = md.artworkUri
-            cover.load(md.artworkUri) {
-                crossfade(true)
-                placeholder(R.drawable.ic_music)
-                error(R.drawable.ic_music)
-            }
+            applyArtwork(md.artworkUri)
         }
         btnPlay.setImageResource(if (c.playWhenReady && c.playbackState != Player.STATE_ENDED) R.drawable.ic_pause else R.drawable.ic_play)
         btnShuffle.alpha = if (c.shuffleModeEnabled) 1f else 0.45f
@@ -139,6 +161,85 @@ class NowPlayingActivity : AppCompatActivity() {
             getString(R.string.next_up, n.title ?: "", n.artist ?: "")
         } else ""
         updateProgress()
+    }
+
+    // ---------- Fondo según los colores de la carátula ----------
+
+    private fun applyArtwork(uri: Uri?) {
+        if (uri == null) {
+            cover.setImageResource(R.drawable.ic_music)
+            animateColors(defaultBg, defaultAccent)
+            return
+        }
+        val request = ImageRequest.Builder(this)
+            .data(uri)
+            .allowHardware(false) // Palette necesita leer los píxeles
+            .target(
+                onError = {
+                    cover.setImageResource(R.drawable.ic_music)
+                    animateColors(defaultBg, defaultAccent)
+                },
+                onSuccess = { drawable ->
+                    cover.setImageDrawable(drawable)
+                    val bmp = (drawable as? BitmapDrawable)?.bitmap
+                    if (bmp == null) {
+                        animateColors(defaultBg, defaultAccent)
+                    } else {
+                        Palette.from(bmp).generate { p ->
+                            if (p == null) return@generate
+                            val base = p.getDarkVibrantColor(p.getDarkMutedColor(p.getDominantColor(defaultBg)))
+                            val accent = p.getLightVibrantColor(p.getVibrantColor(p.getLightMutedColor(defaultAccent)))
+                            animateColors(readableBg(base), readableAccent(accent))
+                        }
+                    }
+                },
+            )
+            .build()
+        imageLoader.enqueue(request)
+    }
+
+    /** Oscurece el color hasta que el texto blanco se lea bien. */
+    private fun readableBg(color: Int): Int {
+        var c = color
+        var i = 0
+        while (ColorUtils.calculateLuminance(c) > 0.12 && i < 10) {
+            c = ColorUtils.blendARGB(c, Color.BLACK, 0.2f)
+            i++
+        }
+        return c
+    }
+
+    /** Aclara el acento para que destaque sobre el fondo oscuro. */
+    private fun readableAccent(color: Int): Int {
+        var c = color
+        var i = 0
+        while (ColorUtils.calculateLuminance(c) < 0.35 && i < 10) {
+            c = ColorUtils.blendARGB(c, Color.WHITE, 0.2f)
+            i++
+        }
+        return c
+    }
+
+    private fun animateColors(toBg: Int, toAccent: Int) {
+        val fromBg = currentBg
+        val fromAccent = currentAccent
+        colorAnimator?.cancel()
+        colorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 900
+            addUpdateListener { a ->
+                val f = a.animatedValue as Float
+                setColors(ColorUtils.blendARGB(fromBg, toBg, f), ColorUtils.blendARGB(fromAccent, toAccent, f))
+            }
+            start()
+        }
+    }
+
+    private fun setColors(bg: Int, accent: Int) {
+        currentBg = bg
+        currentAccent = accent
+        gradient.setColors(intArrayOf(bg, ColorUtils.blendARGB(bg, Color.BLACK, 0.7f)))
+        artist.setTextColor(accent)
+        progress.progressTintList = ColorStateList.valueOf(accent)
     }
 
     private fun updateProgress() {

@@ -19,6 +19,8 @@
     <string name="tab_search">Buscar</string>
     <string name="now_playing">▶ Reproduciendo</string>
     <string name="logout">Cerrar sesión</string>
+    <string name="sort_az">Orden: A–Z</string>
+    <string name="sort_recent">Orden: Recientes</string>
     <string name="library_x">Biblioteca: %1$s</string>
     <string name="search_hint">Artista, álbum o canción</string>
 

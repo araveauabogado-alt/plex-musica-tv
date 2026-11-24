@@ -47,6 +47,11 @@ class Prefs(context: Context) {
         get() = sp.getString("sectionId", null)
         set(value) { sp.edit().putString("sectionId", value).apply() }
 
+    /** Orden de las listas: "az" o "recent". */
+    var sortMode: String
+        get() = sp.getString("sortMode", "az") ?: "az"
+        set(value) { sp.edit().putString("sortMode", value).apply() }
+
     fun logout() {
         val id = clientId
         sp.edit().clear().putString("clientId", id).apply()

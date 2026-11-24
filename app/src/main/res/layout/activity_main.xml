@@ -26,6 +26,7 @@
             <Button android:id="@+id/btnAlbums" style="@style/TvButton" android:text="@string/tab_albums" />
             <Button android:id="@+id/btnPlaylists" style="@style/TvButton" android:text="@string/tab_playlists" />
             <Button android:id="@+id/btnSearch" style="@style/TvButton" android:text="@string/tab_search" />
+            <Button android:id="@+id/btnSort" style="@style/TvButton" android:text="@string/sort_az" />
             <Button android:id="@+id/btnNowPlaying" style="@style/TvButton" android:text="@string/now_playing" />
             <Button android:id="@+id/btnLibrary" style="@style/TvButton" android:visibility="gone" />
             <Button android:id="@+id/btnLogout" style="@style/TvButton" android:text="@string/logout" />
@@ -61,6 +62,25 @@
             android:layout_marginStart="12dp"
             android:text="@string/tab_search" />
     </LinearLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/letterScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:clipChildren="false"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/letterBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp" />
+    </HorizontalScrollView>
 
     <TextView
         android:id="@+id/status"

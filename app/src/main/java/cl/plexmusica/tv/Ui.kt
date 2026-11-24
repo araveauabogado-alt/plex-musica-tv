@@ -10,6 +10,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import java.text.Collator
+import java.text.Normalizer
+import java.util.Locale
 import kotlin.math.max
 
 object Ui {
@@ -22,6 +25,30 @@ object Ui {
         val dm = context.resources.displayMetrics
         return max(2, ((dm.widthPixels / dm.density - 96) / itemDp).toInt())
     }
+
+    private val collator: Collator = Collator.getInstance(Locale("es")).apply { strength = Collator.PRIMARY }
+
+    /** Letra para la barra de atajos: A–Z, o "#" para números y símbolos. */
+    fun letterOf(item: PlexItem): String {
+        val s = Normalizer.normalize(item.titleSort.trim(), Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}"), "")
+        val c = s.firstOrNull()?.uppercaseChar() ?: return "#"
+        return if (c in 'A'..'Z') c.toString() else "#"
+    }
+
+    /** Orden alfabético con "#" primero y las letras agrupadas igual que en la barra. */
+    fun sortAlpha(items: List<PlexItem>): List<PlexItem> =
+        items.sortedWith(Comparator { a, b ->
+            val la = letterOf(a)
+            val lb = letterOf(b)
+            if (la != lb) {
+                when {
+                    la == "#" -> -1
+                    lb == "#" -> 1
+                    else -> la.compareTo(lb)
+                }
+            } else collator.compare(a.titleSort, b.titleSort)
+        })
 
     fun time(ms: Long): String {
         if (ms <= 0) return "0:00"

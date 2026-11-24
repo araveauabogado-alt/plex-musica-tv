@@ -21,6 +21,17 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Preparar firma
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > app/release.jks
+            echo "Firma fija lista"
+          else
+            echo "::warning::Sin secreto KEYSTORE_B64: se usa la firma de depuracion"
+          fi
+
       - name: Compilar
         run: |
           chmod +x gradlew

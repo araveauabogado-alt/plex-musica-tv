@@ -15,11 +15,23 @@ android {
         versionName = "1.0"
     }
 
+    // Firma fija: GitHub Actions crea app/release.jks desde el secreto KEYSTORE_B64.
+    // Así cada versión nueva se instala encima de la anterior sin desinstalar.
+    val releaseKeystore = file("release.jks")
+    signingConfigs {
+        create("release") {
+            storeFile = releaseKeystore
+            storePassword = "plexmusica"
+            keyAlias = "plexmusica"
+            keyPassword = "plexmusica"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Firmado con la clave de depuración para poder instalarlo directo en la TV.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystore.exists()) signingConfigs.getByName("release")
+            else signingConfigs.getByName("debug")
         }
     }
 
@@ -44,4 +56,5 @@ dependencies {
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil:2.7.0")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 }

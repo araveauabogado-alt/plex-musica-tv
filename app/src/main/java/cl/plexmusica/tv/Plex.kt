@@ -24,6 +24,8 @@ data class PlexItem(
     val duration: Long,
     val album: String,
     val artist: String,
+    val titleSort: String = title,
+    val addedAt: Long = 0,
 )
 
 data class PlexServer(
@@ -213,6 +215,8 @@ object Plex {
             duration = o.optLong("duration"),
             album = if (type == "track") o.str("parentTitle") ?: "" else "",
             artist = artist,
+            titleSort = o.str("titleSort") ?: o.str("title") ?: "",
+            addedAt = o.optLong("addedAt"),
         )
     }
 

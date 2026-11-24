@@ -7,6 +7,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -26,6 +27,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var searchRow: View
     private lateinit var searchBox: EditText
     private lateinit var libButton: Button
+    private lateinit var sortButton: Button
+    private lateinit var letterScroll: View
+    private lateinit var letterBar: LinearLayout
     private lateinit var tabButtons: Map<Tab, Button>
 
     private var sections: List<Pair<String, String>> = emptyList()
@@ -46,6 +50,9 @@ class MainActivity : AppCompatActivity() {
         searchRow = findViewById(R.id.searchRow)
         searchBox = findViewById(R.id.searchBox)
         libButton = findViewById(R.id.btnLibrary)
+        sortButton = findViewById(R.id.btnSort)
+        letterScroll = findViewById(R.id.letterScroll)
+        letterBar = findViewById(R.id.letterBar)
         grid.layoutManager = GridLayoutManager(this, Ui.spanCount(this))
 
         tabButtons = mapOf(
@@ -65,6 +72,8 @@ class MainActivity : AppCompatActivity() {
             finish()
         }
         libButton.setOnClickListener { nextLibrary() }
+        sortButton.setOnClickListener { toggleSort() }
+        updateSortButton()
         findViewById<Button>(R.id.btnSearchGo).setOnClickListener { runSearch() }
         searchBox.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE ||
@@ -113,12 +122,15 @@ class MainActivity : AppCompatActivity() {
         updateLibButton()
     }
 
+    private val recentMode get() = prefs.sortMode == "recent"
+
     private fun select(tab: Tab) {
         current = tab
         tabButtons.forEach { (t, b) -> b.isSelected = t == tab }
         if (tab == Tab.SEARCH) {
             searchRow.visibility = View.VISIBLE
             grid.adapter = null
+            buildLetters(emptyList(), false)
             setStatus("")
             searchBox.requestFocus()
             if (!connected) launchJob { ensureConnected(); setStatus("") }
@@ -129,12 +141,15 @@ class MainActivity : AppCompatActivity() {
             ensureConnected()
             setStatus(getString(R.string.loading))
             val sec = prefs.sectionId
+            val sort = if (recentMode) "addedAt:desc" else "titleSort"
             val path = when (tab) {
-                Tab.ARTISTS -> "/library/sections/$sec/all?type=8"
-                Tab.ALBUMS -> "/library/sections/$sec/all?type=9"
+                Tab.ARTISTS -> "/library/sections/$sec/all?type=8&sort=$sort"
+                Tab.ALBUMS -> "/library/sections/$sec/all?type=9&sort=$sort"
                 else -> "/playlists?playlistType=audio"
             }
-            show(Plex.items(path))
+            val items = Plex.items(path)
+            val sorted = if (recentMode) items.sortedByDescending { it.addedAt } else Ui.sortAlpha(items)
+            show(sorted, letters = !recentMode)
         }
     }
 
@@ -144,14 +159,54 @@ class MainActivity : AppCompatActivity() {
         launchJob {
             ensureConnected()
             setStatus(getString(R.string.searching))
-            show(Plex.search(q, prefs.sectionId))
+            show(Plex.search(q, prefs.sectionId), letters = false)
             grid.post { grid.getChildAt(0)?.requestFocus() }
         }
     }
 
-    private fun show(items: List<PlexItem>) {
+    private fun show(items: List<PlexItem>, letters: Boolean) {
         grid.adapter = CardAdapter(items) { Ui.open(this, it, items) }
+        buildLetters(items, letters)
         setStatus(if (items.isEmpty()) getString(R.string.empty) else "")
+    }
+
+    /** Fila de letras para saltar directo a una parte de la lista. */
+    private fun buildLetters(items: List<PlexItem>, enabled: Boolean) {
+        letterBar.removeAllViews()
+        if (!enabled || items.size < 20) {
+            letterScroll.visibility = View.GONE
+            return
+        }
+        val first = LinkedHashMap<String, Int>()
+        items.forEachIndexed { i, item ->
+            val letter = Ui.letterOf(item)
+            if (letter !in first) first[letter] = i
+        }
+        for ((letter, pos) in first) {
+            val tv = layoutInflater.inflate(R.layout.item_letter, letterBar, false) as TextView
+            tv.text = letter
+            tv.setOnClickListener { jumpTo(pos) }
+            letterBar.addView(tv)
+        }
+        letterScroll.visibility = View.VISIBLE
+    }
+
+    private fun jumpTo(pos: Int) {
+        val lm = grid.layoutManager as GridLayoutManager
+        lm.scrollToPositionWithOffset(pos, 0)
+        grid.post {
+            grid.findViewHolderForAdapterPosition(pos)?.itemView?.requestFocus()
+        }
+    }
+
+    private fun toggleSort() {
+        prefs.sortMode = if (recentMode) "az" else "recent"
+        updateSortButton()
+        select(if (current == Tab.SEARCH) Tab.ARTISTS else current)
+    }
+
+    private fun updateSortButton() {
+        sortButton.text = getString(if (recentMode) R.string.sort_recent else R.string.sort_az)
     }
 
     private fun updateLibButton() {
