@@ -118,6 +118,8 @@ class VisualizerActivity : AppCompatActivity() {
     private fun updateInfo() {
         val name = getString(
             when (styles[styleIndex]) {
+                VisualizerView.Style.PULSAR -> R.string.vis_pulsar
+                VisualizerView.Style.AMBIENT -> R.string.vis_ambient
                 VisualizerView.Style.SPECTRUM -> R.string.vis_spectrum
                 VisualizerView.Style.WAVE -> R.string.vis_wave
                 VisualizerView.Style.HALO -> R.string.vis_halo
@@ -129,6 +131,7 @@ class VisualizerActivity : AppCompatActivity() {
     private fun updateSong() {
         val md = controller?.mediaMetadata ?: return
         title.text = if (md.title != null) "${md.title} — ${md.artist ?: ""}" else ""
+        vis.setSong(md.title?.toString() ?: "", md.artist?.toString() ?: "")
         val uri = md.artworkUri
         if (uri != lastArt) {
             lastArt = uri
@@ -173,9 +176,11 @@ class VisualizerActivity : AppCompatActivity() {
         info.animate().cancel()
         title.animate().cancel()
         thumb.animate().cancel()
+        // En "Ambiente" la carátula y el título ya están al centro: arriba solo va el nombre del estilo.
+        val ambient = styles[styleIndex] == VisualizerView.Style.AMBIENT
         info.alpha = 1f
-        title.alpha = 1f
-        thumb.alpha = 1f
+        title.alpha = if (ambient) 0f else 1f
+        thumb.alpha = if (ambient) 0f else 1f
         info.visibility = View.VISIBLE
         title.visibility = View.VISIBLE
         handler.postDelayed(hideInfo, 4000)

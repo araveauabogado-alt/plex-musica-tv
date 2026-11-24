@@ -52,6 +52,8 @@
     <string name="seek_hint">◀ ▶ retroceder / adelantar</string>
     <string name="cd_visualizer">Visualizador</string>
     <string name="vis_info">%1$s   ◀ ▶ cambiar estilo · OK pausa</string>
+    <string name="vis_pulsar">Pulsar</string>
+    <string name="vis_ambient">Ambiente</string>
     <string name="vis_spectrum">Espectro</string>
     <string name="vis_wave">Onda</string>
     <string name="vis_halo">Halo</string>
