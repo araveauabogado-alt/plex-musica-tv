@@ -11,8 +11,10 @@ android {
         applicationId = "cl.plexmusica.tv"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // En GitHub Actions el número de compilación sube solo, así cada APK es una actualización.
+        val run = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = run
+        versionName = "1.0.$run"
     }
 
     // Firma fija: GitHub Actions crea app/release.jks desde el secreto KEYSTORE_B64.
